@@ -124,7 +124,7 @@
                                     </div>
                                     <div class="notif-item-content">
                                         <p class="notif-item-text">{{ n.mensaje }}</p>
-                                        <span class="notif-item-time">{{ n.fecha_programada[:16] if n.fecha_programada else '' }}</span>
+                                        <span class="notif-item-time">{{ n.fecha_programada.isoformat()[:16] if n.fecha_programada else '' }}</span>
                                     </div>
                                     {% if not n.enviado %}
                                     <button class="notif-item-dismiss" data-id="{{ n.id_recordatorio }}" aria-label="Marcar como leída">
