@@ -94,7 +94,63 @@
                     <span class="status-pill amber"><i class="fas fa-circle"></i> Parcial en 2 dias</span>
                 </div>
                 <div class="topbar-right">
-                    <button class="notif-btn"><i class="far fa-bell"></i><span class="notif-dot"></span></button>
+                    <div class="notif-container">
+                        <button class="notif-btn" id="notifToggle" aria-label="Notificaciones" aria-haspopup="true">
+                            <i data-lucide="bell" class="w-4 h-4"></i>
+                            {% if notificaciones_no_leidas > 0 %}
+                            <span class="notif-dot" id="notifDot">{{ notificaciones_no_leidas }}</span>
+                            {% else %}
+                            <span class="notif-dot" id="notifDot" style="display:none">0</span>
+                            {% endif %}
+                        </button>
+                        <div class="notif-dropdown" id="notifDropdown" role="menu" aria-label="Notificaciones">
+                            <div class="notif-header">
+                                <div>
+                                    <h3 class="notif-title">Notificaciones</h3>
+                                    <span class="notif-subtitle" id="notifSubtitle">{{ notificaciones_no_leidas }} sin leer</span>
+                                </div>
+                                {% if notificaciones_no_leidas > 0 %}
+                                <button class="notif-mark-read" id="markAllRead" title="Marcar todas como leídas">
+                                    <i data-lucide="check-check" class="w-4 h-4"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                            <div class="notif-list" id="notifList">
+                                {% if notificaciones %}
+                                {% for n in notificaciones %}
+                                <div class="notif-item {{ 'notif-unread' if not n.enviado else '' }}" data-id="{{ n.id_recordatorio }}">
+                                    <div class="notif-item-icon {{ 'unread' if not n.enviado else '' }}">
+                                        <i data-lucide="{{ 'alert-circle' if 'URGENTE' in n.mensaje else 'bell' }}" class="w-4 h-4"></i>
+                                    </div>
+                                    <div class="notif-item-content">
+                                        <p class="notif-item-text">{{ n.mensaje }}</p>
+                                        <span class="notif-item-time">{{ n.fecha_programada[:16] if n.fecha_programada else '' }}</span>
+                                    </div>
+                                    {% if not n.enviado %}
+                                    <button class="notif-item-dismiss" data-id="{{ n.id_recordatorio }}" aria-label="Marcar como leída">
+                                        <i data-lucide="x" class="w-3 h-3"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                                {% else %}
+                                <div class="notif-empty">
+                                    <div class="notif-empty-icon">
+                                        <i data-lucide="bell-off" class="w-6 h-6"></i>
+                                    </div>
+                                    <p class="notif-empty-text">Sin notificaciones</p>
+                                    <p class="notif-empty-sub">Estás al día</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="notif-footer">
+                                <a href="{{ url_for('recordatorios') }}" class="notif-footer-link">
+                                    Ver todos los recordatorios
+                                    <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                     <div class="topbar-profile">
                         <div class="user-avatar">{{ session.usuario_nombre[0]|upper }}</div>
                         <span class="user-name">{{ session.usuario_nombre }}</span>
@@ -163,6 +219,99 @@
         }, 4000);
     </script>
     {% block scripts %}{% endblock %}
+    <script>
+        // ===== NOTIFICATION DROPDOWN =====
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggle = document.getElementById('notifToggle');
+            const dropdown = document.getElementById('notifDropdown');
+            const dot = document.getElementById('notifDot');
+            const subtitle = document.getElementById('notifSubtitle');
+            const list = document.getElementById('notifList');
+            let isOpen = false;
+
+            if (!toggle || !dropdown) return;
+
+            function openDropdown() {
+                isOpen = true;
+                dropdown.classList.add('open');
+                dropdown.setAttribute('aria-hidden', 'false');
+            }
+            function closeDropdown() {
+                isOpen = false;
+                dropdown.classList.remove('open');
+                dropdown.setAttribute('aria-hidden', 'true');
+            }
+            function toggleDropdown(e) {
+                e.stopPropagation();
+                isOpen ? closeDropdown() : openDropdown();
+            }
+
+            toggle.addEventListener('click', toggleDropdown);
+
+            // Close on outside click
+            document.addEventListener('click', function(e) {
+                if (isOpen && !toggle.contains(e.target) && !dropdown.contains(e.target)) {
+                    closeDropdown();
+                }
+            });
+
+            // Close on Escape
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && isOpen) closeDropdown();
+            });
+
+            // Mark single notification as read
+            document.querySelectorAll('.notif-item-dismiss').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const id = this.getAttribute('data-id');
+                    const item = this.closest('.notif-item');
+                    fetch('/api/notificaciones/leer/' + id, { method: 'POST' })
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            if (data.ok) {
+                                item.classList.remove('notif-unread');
+                                item.querySelector('.notif-item-icon').classList.remove('unread');
+                                this.remove();
+                                updateBadge();
+                            }
+                        }.bind(this));
+                });
+            });
+
+            // Mark all as read
+            const markAllBtn = document.getElementById('markAllRead');
+            if (markAllBtn) {
+                markAllBtn.addEventListener('click', function() {
+                    fetch('/api/notificaciones/leer-todas', { method: 'POST' })
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            if (data.ok) {
+                                document.querySelectorAll('.notif-item').forEach(function(item) {
+                                    item.classList.remove('notif-unread');
+                                    var icon = item.querySelector('.notif-item-icon');
+                                    if (icon) icon.classList.remove('unread');
+                                    var dismiss = item.querySelector('.notif-item-dismiss');
+                                    if (dismiss) dismiss.remove();
+                                });
+                                var btn = document.getElementById('markAllRead');
+                                if (btn) btn.remove();
+                                updateBadge();
+                            }
+                        });
+                });
+            }
+
+            function updateBadge() {
+                var unread = document.querySelectorAll('.notif-unread').length;
+                if (dot) {
+                    dot.textContent = unread;
+                    dot.style.display = unread > 0 ? '' : 'none';
+                }
+                if (subtitle) subtitle.textContent = unread + ' sin leer';
+            }
+        });
+    </script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>document.addEventListener('DOMContentLoaded', function(){ lucide.createIcons(); });</script>
 </body>

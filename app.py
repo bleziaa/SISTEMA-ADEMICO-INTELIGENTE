@@ -1,5 +1,5 @@
 import logging
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime, timedelta, date as date_cls
 import json
 from modelos import *
@@ -16,6 +16,14 @@ app.permanent_session_lifetime = timedelta(minutes=30)
 # Initialize the database schema before the app starts serving requests.
 # This is safe to call on every startup — all statements use IF NOT EXISTS.
 init_db()
+
+@app.context_processor
+def inject_notifications():
+    if "usuario_id" in session:
+        notificaciones = listar_recordatorios(session["usuario_id"])
+        no_leidas = sum(1 for n in notificaciones if not n.get("enviado"))
+        return dict(notificaciones=notificaciones[:10], notificaciones_no_leidas=no_leidas)
+    return dict(notificaciones=[], notificaciones_no_leidas=0)
 
 @app.before_request
 def before_request():
@@ -318,6 +326,26 @@ def horario_visual():
         flash(error, "error")
         return redirect(url_for("horario_sugerido"))
     return render_template("ver_horario.html", data=resultado)
+
+@app.route("/api/notificaciones/leer/<int:id>", methods=["POST"])
+def api_notificacion_leer(id):
+    if "usuario_id" not in session:
+        return jsonify({"ok": False}), 401
+    marcar_recordatorio_enviado(id)
+    return jsonify({"ok": True})
+
+@app.route("/api/notificaciones/leer-todas", methods=["POST"])
+def api_notificaciones_leer_todas():
+    if "usuario_id" not in session:
+        return jsonify({"ok": False}), 401
+    conn = conectar()
+    if conn:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE recordatorios SET enviado=1 WHERE id_usuario=%s AND enviado=0", (session["usuario_id"],))
+        conn.commit()
+        cursor.close()
+        conn.close()
+    return jsonify({"ok": True})
 
 @app.route("/eliminar-recomendacion/<int:id>")
 def eliminar_recomendacion(id):
