@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Recordatorios - Asistente Academico{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-bell"></i> Recordatorios y Alertas</h1>
+</div>
+
+<div class="task-list">
+    {% if recordatorios %}
+    {% for r in recordatorios %}
+    <div class="task-item {% if r.enviado %}enviado{% endif %}">
+        <div><i class="fas fa-bell"></i></div>
+        <div>
+            <p>{{ r.mensaje }}</p>
+            <small>Programado: {{ r.fecha_programada }}</small>
+        </div>
+        <div>
+            {% if r.enviado %}<span class="badge">Enviado</span>{% else %}<span class="badge">Pendiente</span>{% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <p>No hay recordatorios. Las tareas generan recordatorios automaticamente 24h y 12h antes de la fecha de entrega.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

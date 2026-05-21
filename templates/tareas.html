@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Tareas - Asistente Academico{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-tasks"></i> Mis Tareas</h1>
+    <button class="btn-primary" onclick="document.getElementById('modal-tarea').classList.add('active')"><i class="fas fa-plus-circle"></i> Nueva Tarea</button>
+</div>
+
+<div class="tabs">
+    <a href="{{ url_for('tareas', filtro='pendientes') }}" class="tab {% if filtro == 'pendientes' %}active{% endif %}">Pendientes</a>
+    <a href="{{ url_for('tareas', filtro='completadas') }}" class="tab {% if filtro == 'completadas' %}active{% endif %}">Completadas</a>
+    <a href="{{ url_for('tareas', filtro='vencidas') }}" class="tab {% if filtro == 'vencidas' %}active{% endif %}">Vencidas</a>
+    <a href="{{ url_for('tareas', filtro='todas') }}" class="tab {% if filtro == 'todas' %}active{% endif %}">Todas</a>
+</div>
+
+<div class="task-list">
+    {% for t in tareas %}
+    <div class="task-item {{ 'vencida' if t.estado == 'pendiente' and t.prioridad > 20 else t.estado }}">
+        <div>
+            <h3>{{ t.titulo }}</h3>
+            <span class="badge {{ t.dificultad }}">{{ t.dificultad }}</span>
+        </div>
+        {% if t.descripcion %}<p>{{ t.descripcion[:100] }}</p>{% endif %}
+        <div>
+            <span><i class="far fa-calendar-alt"></i> {{ t.fecha_limite }}</span>
+            <span><i class="far fa-clock"></i> {{ t.tiempo_estimado }}min</span>
+            <span><i class="fas fa-flag"></i> Prioridad: {{ t.prioridad }}</span>
+        </div>
+        <div>
+            {% if t.estado == 'pendiente' %}
+            <a href="{{ url_for('tareas_completar', id=t.id_tarea) }}" class="btn-small green"><i class="fas fa-check"></i> Completar</a>
+            {% endif %}
+            <button class="btn-small" onclick="editarTarea({{ t.id_tarea }}, '{{ t.titulo }}', '{{ t.descripcion or '' }}', '{{ t.fecha_limite }}', '{{ t.dificultad }}', {{ t.tiempo_estimado }})"><i class="fas fa-edit"></i> Editar</button>
+            <a href="{{ url_for('tareas_eliminar', id=t.id_tarea) }}" class="btn-small red" onclick="return confirm('Eliminar tarea?')"><i class="fas fa-trash-alt"></i> Eliminar</a>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No hay tareas {{ filtro }}</p>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="modal" id="modal-tarea">
+    <div class="modal-content">
+        <span class="modal-close" onclick="this.closest('.modal').classList.remove('active')">&times;</span>
+        <h2 id="modal-tarea-title">Nueva Tarea</h2>
+        <form method="POST" action="{{ url_for('tareas_crear') }}" id="form-tarea">
+            <div class="form-group">
+                <label>Titulo</label>
+                <input type="text" name="titulo" required placeholder="Nombre de la tarea">
+            </div>
+            <div class="form-group">
+                <label>Descripcion</label>
+                <textarea name="descripcion" rows="2" placeholder="Descripcion opcional"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Fecha limite</label>
+                    <input type="date" name="fecha_limite" required>
+                </div>
+                <div class="form-group">
+                    <label>Dificultad</label>
+                    <select name="dificultad">
+                        <option value="baja">Baja</option>
+                        <option value="media" selected>Media</option>
+                        <option value="alta">Alta</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tiempo (min)</label>
+                    <input type="number" name="tiempo_estimado" value="60" min="15" max="600">
+                </div>
+            </div>
+            <button type="submit" class="btn-primary btn-full">Guardar Tarea</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function editarTarea(id, titulo, descripcion, fecha, dificultad, tiempo) {
+    const modal = document.getElementById('modal-tarea');
+    document.getElementById('modal-tarea-title').textContent = 'Editar Tarea';
+    const form = document.getElementById('form-tarea');
+    form.action = '/tareas/editar/' + id;
+    form.querySelector('[name=titulo]').value = titulo;
+    if (form.querySelector('[name=descripcion]')) form.querySelector('[name=descripcion]').value = descripcion;
+    if (form.querySelector('[name=fecha_limite]')) form.querySelector('[name=fecha_limite]').value = fecha;
+    if (form.querySelector('[name=dificultad]')) form.querySelector('[name=dificultad]').value = dificultad;
+    if (form.querySelector('[name=tiempo_estimado]')) form.querySelector('[name=tiempo_estimado]').value = tiempo;
+    modal.classList.add('active');
+}
+document.querySelectorAll('.modal-close').forEach(function(el) {
+    el.addEventListener('click', function() { this.closest('.modal').classList.remove('active'); });
+});
+</script>
+{% endblock %}

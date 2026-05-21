@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Iniciar Sesion - AcademIA{% endblock %}
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <span class="auth-icon"><i class="fas fa-graduation-cap"></i></span>
+            <h1>Academ<span style="color: var(--accent);">IA</span></h1>
+            <p>Tu asistente academico inteligente</p>
+        </div>
+        <form method="POST" class="auth-form">
+            <div class="form-group">
+                <label><i class="fas fa-envelope"></i> Correo electronico</label>
+                <input type="email" id="email" name="email" required placeholder="tu@correo.com">
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-lock"></i> Contrasena</label>
+                <input type="password" id="contrasena" name="contrasena" required placeholder="••••••••">
+            </div>
+            <button type="submit" class="btn-primary btn-full"><i class="fas fa-sign-in-alt"></i> Iniciar Sesion</button>
+        </form>
+        <p class="auth-link">No tienes cuenta? <a href="{{ url_for('register') }}"><i class="fas fa-user-plus"></i> Registrate</a></p>
+    </div>
+</div>
+{% endblock %}

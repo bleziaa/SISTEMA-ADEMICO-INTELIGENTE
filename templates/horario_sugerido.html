@@ -1,0 +1,518 @@
+{% extends "base.html" %}
+{% block title %}Asistente IA - AcademIA{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1><i class="fas fa-robot"></i> Asistente Inteligente</h1>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:4px;">Analiza tus tareas y horarios para generar un plan de estudio personalizado</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('generar_horario_ia') }}" class="btn-primary"><i class="fas fa-wand-magic-sparkles"></i> Generar Horario</a>
+        <a href="{{ url_for('generar_recomendacion_ia') }}" class="btn-small"><i class="fas fa-lightbulb"></i> Recomendacion</a>
+    </div>
+</div>
+
+<div class="recomendaciones-list">
+    {% if recomendaciones %}
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px;">
+        <div style="width:4px;height:24px;border-radius:2px;background:linear-gradient(180deg,var(--primary),var(--accent));"></div>
+        <h2 style="font-size:1.1rem;font-weight:600;">Historial</h2>
+        <span style="color:var(--text-muted);font-size:0.85rem;">({{ recomendaciones|length }})</span>
+    </div>
+    {% for r in recomendaciones %}
+    {% set es_horario = r.contenido[:8] == 'HORARIO ' %}
+
+    {% if es_horario %}
+    <div class="ia-card ia-card-horario">
+        <div class="ia-card-top">
+            <div class="ia-card-left">
+                <div class="ia-badge horario">
+                    <i class="fas fa-calendar-week"></i> Horario Semanal
+                </div>
+                <span class="ia-date"><i class="far fa-calendar"></i> {{ r.fecha }}</span>
+            </div>
+            <div class="ia-card-right">
+                <div class="ia-view-toggle">
+                    <button class="ia-view-btn active" id="btn-cal-{{ r.id_recomendacion }}" onclick="showView({{ r.id_recomendacion }}, 'cal')"><i class="fas fa-grid"></i> Calendario</button>
+                    <button class="ia-view-btn" id="btn-txt-{{ r.id_recomendacion }}" onclick="showView({{ r.id_recomendacion }}, 'txt')"><i class="fas fa-list"></i> Lista</button>
+                </div>
+                <a href="{{ url_for('eliminar_recomendacion', id=r.id_recomendacion) }}" class="ia-delete" onclick="return confirm('Eliminar este horario?')" title="Eliminar"><i class="fas fa-trash-alt"></i></a>
+            </div>
+        </div>
+
+        <div id="view-cal-{{ r.id_recomendacion }}">
+            <div class="calendar-grid" id="cal-{{ r.id_recomendacion }}"></div>
+            <div class="cal-leyenda">
+                <span><span class="dot dot-alta"></span> Alta</span>
+                <span><span class="dot dot-media"></span> Media</span>
+                <span><span class="dot dot-baja"></span> Baja</span>
+                <span><span class="dot dot-desc"></span> Descanso</span>
+            </div>
+        </div>
+        <div id="view-txt-{{ r.id_recomendacion }}" style="display:none;">
+            <div class="horario-texto" id="txt-{{ r.id_recomendacion }}"></div>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="ia-card ia-card-rec">
+        <div class="ia-card-top rec-top">
+            <div class="ia-card-left">
+                <div class="ia-badge recomendacion">
+                    <i class="fas fa-lightbulb"></i> Recomendacion
+                </div>
+                <span class="ia-date"><i class="far fa-calendar"></i> {{ r.fecha }}</span>
+            </div>
+            <a href="{{ url_for('eliminar_recomendacion', id=r.id_recomendacion) }}" class="ia-delete" onclick="return confirm('Eliminar?')" title="Eliminar"><i class="fas fa-trash-alt"></i></a>
+        </div>
+        <div class="ia-rec-body">{{ r.contenido | replace('\n', '<br>') | safe }}</div>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% else %}
+    <div class="ia-empty">
+        <div class="ia-empty-icon"><i class="fas fa-robot"></i></div>
+        <h3>Aun no hay horarios ni recomendaciones</h3>
+        <p>Genera tu primer horario de estudio personalizado con IA</p>
+        <a href="{{ url_for('generar_horario_ia') }}" class="btn-primary" style="margin-top:12px;"><i class="fas fa-wand-magic-sparkles"></i> Generar primer horario</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+const DIAS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'];
+
+function showView(id, view) {
+    document.getElementById('view-cal-' + id).style.display = view === 'cal' ? 'block' : 'none';
+    document.getElementById('view-txt-' + id).style.display = view === 'txt' ? 'block' : 'none';
+    document.getElementById('btn-cal-' + id).classList.toggle('active', view === 'cal');
+    document.getElementById('btn-txt-' + id).classList.toggle('active', view === 'txt');
+}
+
+function parseHorario(text) {
+    const dias = {};
+    DIAS.forEach(d => dias[d] = []);
+    let diaActual = null;
+    let info = { asignadas: 0, total: 0, fecha: '' };
+    for (const line of text.split('\n')) {
+        const t = line.trim();
+        if (t.includes('Tareas pendientes:')) info.total = parseInt(t.split(':')[1]);
+        if (t.includes('Generado el:')) info.fecha = t.split(':').slice(1).join(':').trim();
+        if (t.includes('Total tareas asignadas:')) info.asignadas = parseInt(t.split(':')[1]);
+        for (const d of DIAS) {
+            if (t.includes('--- ' + d) || t.includes('---' + d)) { diaActual = d; break; }
+        }
+        if (!diaActual || !t.includes('|')) continue;
+        const [h, desc] = t.split('|');
+        const [inicio, fin] = h.trim().split('-');
+        if (desc.includes('DESCANSO')) {
+            dias[diaActual].push({ tipo: 'descanso', inicio, fin, duracion: 10 });
+        } else {
+            const dif = desc.match(/\(([^,]+)/);
+            const vence = desc.match(/Vence:\s*(\S+)/);
+            const dur = desc.match(/(\d+)min/);
+            dias[diaActual].push({
+                tipo: 'tarea', inicio, fin,
+                titulo: desc.split('(')[0].trim(),
+                dificultad: dif ? dif[1].trim() : 'media',
+                duracion: dur ? +dur[1] : 60,
+                vence: vence ? vence[1] : ''
+            });
+        }
+    }
+    return { dias, info };
+}
+
+function renderCal(id, data) {
+    const grid = document.getElementById('cal-' + id);
+    if (!grid) return;
+    let html = '';
+    for (const dia of DIAS) {
+        const bloques = data.dias[dia] || [];
+        html += '<div class="dia-columna"><div class="dia-header' + (bloques.length ? ' has-bloques' : '') + '">' + dia.slice(0,3) + '</div><div class="dia-body">';
+        if (bloques.length === 0) {
+            html += '<div class="dia-vacio"><i class="fas fa-check-circle"></i><span>Libre</span></div>';
+        } else {
+            html += '<div class="bloques-container">';
+            for (const b of bloques) {
+                if (b.tipo === 'descanso') {
+                    html += '<div class="bloque descanso"><div class="descanso-inner"><i class="fas fa-mug-saucer"></i><div class="descanso-info"><span class="descanso-titulo">Descanso</span><span class="descanso-time">' + b.inicio + ' - ' + b.fin + '</span></div><span class="descanso-duracion">' + b.duracion + 'm</span></div></div>';
+                } else {
+                    html += '<div class="bloque tarea nivel-' + b.dificultad + '"><div class="bloque-indicator"></div><div class="bloque-body"><div class="bloque-top"><span class="bloque-titulo">' + b.titulo + '</span><span class="dificultad-badge ' + b.dificultad + '">' + b.dificultad + '</span></div><div class="bloque-meta"><span><i class="far fa-clock"></i> ' + b.inicio + ' - ' + b.fin + '</span><span><i class="fas fa-hourglass-half"></i> ' + b.duracion + ' min</span></div><div class="bloque-entrega"><i class="far fa-calendar-alt"></i> Entrega: ' + b.vence + '</div></div></div>';
+                }
+            }
+            html += '</div>';
+        }
+        html += '</div></div>';
+    }
+    grid.innerHTML = html;
+}
+
+function renderTexto(id, data) {
+    const container = document.getElementById('txt-' + id);
+    if (!container) return;
+    let html = '<div class="txt-summary"><i class="fas fa-tasks"></i> ' + data.info.asignadas + ' tareas asignadas &bull; <i class="far fa-calendar"></i> ' + data.info.fecha + '</div>';
+    for (const dia of DIAS) {
+        const bloques = data.dias[dia] || [];
+        if (bloques.length === 0) continue;
+        html += '<div class="txt-dia"><div class="txt-dia-header"><i class="fas fa-calendar-day"></i> ' + dia + '</div><div class="txt-bloques">';
+        for (const b of bloques) {
+            if (b.tipo === 'descanso') {
+                html += '<div class="txt-bloque descanso"><div class="txt-icon"><i class="fas fa-mug-saucer"></i></div><div class="txt-info"><span class="txt-descanso">Descanso</span><span class="txt-hora">' + b.inicio + ' - ' + b.fin + '</span></div><span class="txt-tiempo">' + b.duracion + 'min</span></div>';
+            } else {
+                const c = b.dificultad === 'alta' ? '#e17055' : b.dificultad === 'media' ? '#fdcb6e' : '#00b894';
+                html += '<div class="txt-bloque tarea" style="border-left-color:' + c + '"><div class="txt-icon" style="color:' + c + '"><i class="fas fa-circle-check"></i></div><div class="txt-info"><span class="txt-titulo">' + b.titulo + '</span><span class="txt-hora">' + b.inicio + ' - ' + b.fin + ' <span class="txt-vence"><i class="far fa-calendar"></i> ' + b.vence + '</span></span></div><span class="txt-dif" style="background:' + c + '">' + b.dificultad[0].toUpperCase() + '</span></div>';
+            }
+        }
+        html += '</div></div>';
+    }
+    container.innerHTML = html;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    {% for r in recomendaciones %}
+    {% if r.contenido[:8] == 'HORARIO ' %}
+    (function() {
+        const data = parseHorario({{ r.contenido | tojson }});
+        renderCal({{ r.id_recomendacion }}, data);
+        renderTexto({{ r.id_recomendacion }}, data);
+    })();
+    {% endif %}
+    {% endfor %}
+});
+</script>
+
+<style>
+.recomendaciones-list {
+    max-width: 1400px;
+}
+
+.ia-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 24px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    transition: all 0.3s;
+}
+.ia-card:hover {
+    box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+    border-color: rgba(46,206,160,0.15);
+}
+
+.ia-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.ia-card-horario .ia-card-top {
+    background: linear-gradient(135deg, rgba(46,206,160,0.08), rgba(46,206,160,0.03));
+}
+.ia-card-rec .ia-card-top {
+    background: linear-gradient(135deg, rgba(253,203,110,0.06), rgba(253,121,168,0.03));
+}
+
+.ia-card-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.ia-card-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ia-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 6px 14px;
+    border-radius: 20px;
+}
+.ia-badge.horario {
+    background: linear-gradient(135deg, rgba(46,206,160,0.15), rgba(46,206,160,0.1));
+    color: var(--accent);
+    border: 1px solid rgba(46,206,160,0.15);
+}
+.ia-badge.recomendacion {
+    background: linear-gradient(135deg, rgba(253,203,110,0.15), rgba(253,121,168,0.1));
+    color: var(--warning);
+    border: 1px solid rgba(253,203,110,0.15);
+}
+
+.ia-date {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ia-view-toggle {
+    display: flex;
+    gap: 3px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    padding: 3px;
+}
+.ia-view-btn {
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-muted);
+    background: transparent;
+    transition: all 0.2s;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.ia-view-btn.active {
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 2px 8px rgba(46,206,160,0.3);
+}
+.ia-view-btn:hover:not(.active) {
+    background: rgba(255,255,255,0.06);
+}
+
+.ia-delete {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    padding: 6px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    opacity: 0.4;
+    text-decoration: none;
+}
+.ia-delete:hover {
+    color: var(--danger);
+    opacity: 1;
+    background: rgba(225,112,85,0.1);
+    text-decoration: none;
+}
+
+.ia-card-horario > div:not(.ia-card-top) {
+    padding: 20px 24px;
+}
+
+.ia-rec-body {
+    padding: 20px 24px;
+    line-height: 1.8;
+    font-size: 0.9rem;
+    color: var(--text);
+    white-space: pre-wrap;
+}
+
+.ia-empty {
+    text-align: center;
+    padding: 80px 20px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+.ia-empty-icon {
+    font-size: 3.5rem;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    opacity: 0.3;
+}
+.ia-empty h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.ia-empty p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.calendar-grid .dia-columna {
+    background: linear-gradient(180deg, var(--bg-elevated), rgba(18,18,42,0.5));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: all 0.3s;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+.calendar-grid .dia-columna:hover {
+    box-shadow: 0 8px 32px rgba(46,206,160,0.12);
+    border-color: rgba(46,206,160,0.2);
+    transform: translateY(-2px);
+}
+.calendar-grid .dia-header {
+    text-align: center;
+    padding: 14px 6px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    transition: all 0.3s;
+}
+.calendar-grid .dia-header.has-bloques {
+    color: var(--accent);
+    background: linear-gradient(180deg, rgba(46,206,160,0.1), transparent);
+}
+.calendar-grid .dia-body {
+    padding: 8px;
+    min-height: 80px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.calendar-grid .bloques-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+.calendar-grid .bloque {
+    border-radius: 10px;
+    transition: all 0.25s;
+    cursor: default;
+}
+.calendar-grid .bloque:hover { transform: translateY(-2px); }
+.calendar-grid .bloque.tarea.nivel-alta { background: linear-gradient(135deg, rgba(225,112,85,0.12), rgba(225,112,85,0.04)); border: 1px solid rgba(225,112,85,0.2); }
+.calendar-grid .bloque.tarea.nivel-media { background: linear-gradient(135deg, rgba(253,203,110,0.1), rgba(253,203,110,0.03)); border: 1px solid rgba(253,203,110,0.15); }
+.calendar-grid .bloque.tarea.nivel-baja { background: linear-gradient(135deg, rgba(0,184,148,0.1), rgba(0,184,148,0.03)); border: 1px solid rgba(0,184,148,0.15); }
+.calendar-grid .bloque.tarea.nivel-alta:hover { box-shadow: 0 4px 16px rgba(225,112,85,0.2); }
+.calendar-grid .bloque.tarea.nivel-media:hover { box-shadow: 0 4px 16px rgba(253,203,110,0.2); }
+.calendar-grid .bloque.tarea.nivel-baja:hover { box-shadow: 0 4px 16px rgba(0,184,148,0.2); }
+.calendar-grid .bloque.descanso { background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.08); }
+.calendar-grid .bloque-indicator { height: 3px; border-radius: 3px 3px 0 0; }
+.nivel-alta .bloque-indicator { background: linear-gradient(90deg, var(--danger), rgba(225,112,85,0.3)); }
+.nivel-media .bloque-indicator { background: linear-gradient(90deg, var(--warning), rgba(253,203,110,0.3)); }
+.nivel-baja .bloque-indicator { background: linear-gradient(90deg, var(--success), rgba(0,184,148,0.3)); }
+.calendar-grid .bloque-body { padding: 8px 10px 10px; }
+.calendar-grid .bloque-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 4px; margin-bottom: 4px; }
+.calendar-grid .bloque-titulo { font-size: 0.7rem; font-weight: 600; line-height: 1.3; color: var(--text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.calendar-grid .dificultad-badge { font-size: 0.5rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 7px; border-radius: 20px; flex-shrink: 0; }
+.calendar-grid .dificultad-badge.alta { background: rgba(225,112,85,0.2); color: var(--danger); }
+.calendar-grid .dificultad-badge.media { background: rgba(253,203,110,0.2); color: var(--warning); }
+.calendar-grid .dificultad-badge.baja { background: rgba(0,184,148,0.2); color: var(--success); }
+.calendar-grid .bloque-meta { display: flex; gap: 8px; font-size: 0.6rem; color: var(--text-muted); margin-bottom: 3px; }
+.calendar-grid .bloque-meta span { display: flex; align-items: center; gap: 3px; }
+.calendar-grid .bloque-meta i { font-size: 0.55rem; opacity: 0.6; }
+.calendar-grid .bloque-entrega { font-size: 0.55rem; color: rgba(255,255,255,0.2); display: flex; align-items: center; gap: 3px; }
+.calendar-grid .bloque.descanso .descanso-inner { display: flex; align-items: center; gap: 6px; padding: 8px 10px; }
+.calendar-grid .bloque.descanso .descanso-inner > i { color: var(--text-muted); font-size: 0.9rem; opacity: 0.5; }
+.calendar-grid .bloque.descanso .descanso-info { flex: 1; display: flex; flex-direction: column; }
+.calendar-grid .bloque.descanso .descanso-titulo { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.calendar-grid .bloque.descanso .descanso-time { font-size: 0.6rem; color: rgba(255,255,255,0.2); }
+.calendar-grid .bloque.descanso .descanso-duracion { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); opacity: 0.4; }
+.calendar-grid .dia-vacio { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px 0; color: var(--text-muted); gap: 6px; font-size: 0.7rem; opacity: 0.4; flex: 1; }
+.calendar-grid .dia-vacio i { font-size: 1.3rem; }
+
+.cal-leyenda {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 12px 20px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+.cal-leyenda span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot-alta { background: var(--danger); box-shadow: 0 0 4px rgba(225,112,85,0.3); }
+.dot-media { background: var(--warning); box-shadow: 0 0 4px rgba(253,203,110,0.2); }
+.dot-baja { background: var(--success); box-shadow: 0 0 4px rgba(0,184,148,0.2); }
+.dot-desc { background: var(--text-muted); opacity: 0.4; }
+
+.horario-texto { font-family: 'Inter', sans-serif; }
+.txt-summary {
+    text-align: center;
+    padding: 12px 20px;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, rgba(46,206,160,0.08), rgba(46,206,160,0.05));
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    border: 1px solid rgba(46,206,160,0.1);
+}
+.txt-dia {
+    margin-bottom: 14px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+}
+.txt-dia-header {
+    padding: 10px 16px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: linear-gradient(135deg, rgba(46,206,160,0.12), rgba(46,206,160,0.04));
+    color: var(--accent);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.txt-bloques { padding: 6px; }
+.txt-bloque {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    margin: 4px 0;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.04);
+    border-left: 3px solid var(--text-muted);
+    transition: all 0.2s;
+}
+.txt-bloque:hover {
+    background: rgba(255,255,255,0.06);
+    transform: translateX(4px);
+}
+.txt-bloque.tarea { border-left-width: 3px; }
+.txt-bloque.descanso { border-left-color: rgba(255,255,255,0.15); border-style: dashed; }
+.txt-icon { font-size: 1.1rem; width: 24px; text-align: center; flex-shrink: 0; color: var(--accent); }
+.txt-info { flex: 1; min-width: 0; }
+.txt-titulo { display: block; font-size: 0.9rem; font-weight: 600; }
+.txt-descanso { display: block; font-size: 0.85rem; color: var(--text-muted); font-style: italic; }
+.txt-hora { display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; display: flex; align-items: center; gap: 8px; }
+.txt-vence { color: var(--text-muted); opacity: 0.7; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 3px; }
+.txt-tiempo { font-size: 0.75rem; font-weight: 600; color: var(--accent); flex-shrink: 0; }
+.txt-dif {
+    font-size: 0.6rem; font-weight: 700;
+    width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #1a1a2e; flex-shrink: 0;
+}
+
+@media (max-width: 900px) { .calendar-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 600px) { .calendar-grid { grid-template-columns: repeat(2, 1fr); } }
+</style>
+{% endblock %}

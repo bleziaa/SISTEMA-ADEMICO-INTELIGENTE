@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AcademIA{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=4">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              accent: '#06b6d4',
+              'accent-light': '#22d3ee',
+              'accent-dark': '#0891b2',
+              violet: '#8b5cf6',
+              blue: '#3b82f6',
+              surface: '#121218',
+              elevated: '#1a1a22',
+              'bg-hover': '#1e1e28',
+              'bd': 'rgba(255,255,255,0.06)',
+              'bd-hover': 'rgba(255,255,255,0.1)',
+              'tx': '#f1f1f3',
+              'tx-secondary': '#a1a1aa',
+              'tx-muted': '#52525b',
+            },
+            fontFamily: {
+              sans: ['Inter', '-apple-system', 'sans-serif'],
+            },
+          }
+        }
+      }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    {% if session.usuario_id %}
+    <div class="layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="{{ url_for('dashboard') }}" class="sidebar-logo">
+                    <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
+                    <span class="logo-text">Academ<span>IA</span></span>
+                </a>
+                <button class="sidebar-close" id="sidebarClose"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="sidebar-user">
+                <div class="user-avatar">{{ session.usuario_nombre[0]|upper }}</div>
+                <div class="user-info">
+                    <span class="user-name">{{ session.usuario_nombre }}</span>
+                    <span class="user-role">Estudiante</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="{{ url_for('dashboard') }}" class="nav-item"><i class="fas fa-th-large"></i><span>Dashboard</span></a>
+                <a href="{{ url_for('ia_chat') }}" class="nav-item"><i class="fas fa-comment-dots"></i><span>Chat IA</span></a>
+                <a href="{{ url_for('materias') }}" class="nav-item"><i class="fas fa-book"></i><span>Materias</span></a>
+                <a href="{{ url_for('horarios') }}" class="nav-item"><i class="fas fa-calendar-alt"></i><span>Horarios</span></a>
+                <a href="{{ url_for('tareas') }}" class="nav-item"><i class="fas fa-tasks"></i><span>Tareas</span></a>
+                <a href="{{ url_for('notas') }}" class="nav-item"><i class="fas fa-star"></i><span>Notas</span></a>
+                <a href="{{ url_for('horario_visual') }}" class="nav-item"><i class="fas fa-calendar-week"></i><span>Horario Visual</span></a>
+                <a href="{{ url_for('horario_sugerido') }}" class="nav-item"><i class="fas fa-robot"></i><span>Asistente IA</span></a>
+                <a href="{{ url_for('estadisticas') }}" class="nav-item"><i class="fas fa-chart-bar"></i><span>Estadisticas</span></a>
+                <a href="{{ url_for('recordatorios') }}" class="nav-item"><i class="fas fa-bell"></i><span>Recordatorios</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <a href="{{ url_for('logout') }}" class="nav-item"><i class="fas fa-sign-out-alt"></i><span>Cerrar Sesion</span></a>
+            </div>
+        </aside>
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+        <div class="main-wrapper">
+            <header class="topbar">
+                <button class="topbar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+                <div class="topbar-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Buscar materias, tareas..." />
+                </div>
+                <div class="topbar-status">
+                    <span class="status-pill green"><i class="fas fa-circle"></i> 3 tareas pendientes</span>
+                    <span class="status-pill amber"><i class="fas fa-circle"></i> Parcial en 2 dias</span>
+                </div>
+                <div class="topbar-right">
+                    <button class="notif-btn"><i class="far fa-bell"></i><span class="notif-dot"></span></button>
+                    <div class="topbar-profile">
+                        <div class="user-avatar">{{ session.usuario_nombre[0]|upper }}</div>
+                        <span class="user-name">{{ session.usuario_nombre }}</span>
+                    </div>
+                </div>
+            </header>
+            <div class="flash-container">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+    </div>
+    {% endif %}
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        const toggle = document.getElementById('sidebarToggle');
+        const closeBtn = document.getElementById('sidebarClose');
+
+        function toggleCollapse() {
+            if (window.innerWidth > 768) {
+                document.body.classList.toggle('sidebar-collapsed');
+            } else {
+                sidebar?.classList.toggle('open');
+                overlay?.classList.toggle('active');
+            }
+        }
+        function closeSidebar() { sidebar?.classList.remove('open'); overlay?.classList.remove('active'); }
+
+        toggle?.addEventListener('click', toggleCollapse);
+        closeBtn?.addEventListener('click', closeSidebar);
+        overlay?.addEventListener('click', closeSidebar);
+
+        var path = window.location.pathname;
+        document.querySelectorAll('.sidebar-nav .nav-item').forEach(function(item) {
+            var href = item.getAttribute('href');
+            if (href && (href === path || (href !== '/' && path.startsWith(href)))) {
+                item.classList.add('active');
+            }
+        });
+
+        setTimeout(function() {
+            document.querySelectorAll('.flash').forEach(function(f) {
+                f.style.opacity = '0';
+                setTimeout(function() { f.remove(); }, 400);
+            });
+        }, 4000);
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

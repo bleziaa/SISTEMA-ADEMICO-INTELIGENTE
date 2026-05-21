@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Horarios - Asistente Academico{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-calendar-alt"></i> Mis Horarios</h1>
+    <button class="btn-primary" onclick="document.getElementById('modal-horario').classList.add('active')"><i class="fas fa-plus-circle"></i> Agregar Horario</button>
+</div>
+
+{% set dias = {'lunes':'Lunes','martes':'Martes','miercoles':'Miercoles','jueves':'Jueves','viernes':'Viernes','sabado':'Sabado','domingo':'Domingo'} %}
+{% set dias_ordered = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'] %}
+
+<div class="grid-cards">
+    {% for d in dias_ordered %}
+    <div class="item-card">
+        <h3>{{ dias[d] }}</h3>
+        <div>
+            {% for h in horarios if h.dia_semana == d %}
+            <div>
+                <span><i class="far fa-clock"></i> {{ h.hora_inicio[:5] }} - {{ h.hora_fin[:5] }}</span>
+                <a href="{{ url_for('horarios_eliminar', id=h.id_horario) }}" class="btn-icon" onclick="return confirm('Eliminar?')" title="Eliminar"><i class="fas fa-times-circle"></i></a>
+            </div>
+            {% else %}
+            <p class="text-muted">Sin horarios</p>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="modal" id="modal-horario">
+    <div class="modal-content">
+        <span class="modal-close" onclick="this.closest('.modal').classList.remove('active')">&times;</span>
+        <h2>Nuevo Horario</h2>
+        <form method="POST" action="{{ url_for('horarios_crear') }}">
+            <div class="form-group">
+                <label>Dia</label>
+                <select name="dia_semana">
+                    <option value="lunes">Lunes</option>
+                    <option value="martes">Martes</option>
+                    <option value="miercoles">Miercoles</option>
+                    <option value="jueves">Jueves</option>
+                    <option value="viernes">Viernes</option>
+                    <option value="sabado">Sabado</option>
+                    <option value="domingo">Domingo</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Hora inicio</label>
+                    <input type="time" name="hora_inicio" required>
+                </div>
+                <div class="form-group">
+                    <label>Hora fin</label>
+                    <input type="time" name="hora_fin" required>
+                </div>
+            </div>
+            <button type="submit" class="btn-primary btn-full">Guardar</button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.modal-close').forEach(function(el) {
+    el.addEventListener('click', function() { this.closest('.modal').classList.remove('active'); });
+});
+</script>
+{% endblock %}

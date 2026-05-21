@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Estadisticas - Asistente Academico{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-chart-bar"></i> Estadisticas Academicas</h1>
+    <a href="{{ url_for('generar_recomendacion_ia') }}" class="btn-primary"><i class="fas fa-magic"></i> Generar Recomendacion IA</a>
+</div>
+
+<div class="dashboard-grid">
+    <div class="widget">
+        <h2>Resumen de Tareas</h2>
+        <div>
+            <div>
+                <span>Completadas ({{ stats.completadas }})</span>
+                <div style="height: 8px; background: var(--bg); border-radius: var(--radius-sm); overflow: hidden;">
+                    <div style="height: 100%; width: {% if stats.total_tareas > 0 %}{{ (stats.completadas / stats.total_tareas * 100)|int }}{% else %}0{% endif %}%; background: var(--accent); border-radius: var(--radius-sm);"></div>
+                </div>
+            </div>
+            <div>
+                <span>Pendientes ({{ stats.pendientes }})</span>
+                <div style="height: 8px; background: var(--bg); border-radius: var(--radius-sm); overflow: hidden;">
+                    <div style="height: 100%; width: {% if stats.total_tareas > 0 %}{{ (stats.pendientes / stats.total_tareas * 100)|int }}{% else %}0{% endif %}%; background: #eab308; border-radius: var(--radius-sm);"></div>
+                </div>
+            </div>
+            <div>
+                <span>Vencidas ({{ stats.vencidas }})</span>
+                <div style="height: 8px; background: var(--bg); border-radius: var(--radius-sm); overflow: hidden;">
+                    <div style="height: 100%; width: {% if stats.total_tareas > 0 %}{{ (stats.vencidas / stats.total_tareas * 100)|int }}{% else %}0{% endif %}%; background: #ef4444; border-radius: var(--radius-sm);"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="widget">
+        <h2>Promedios por Materia</h2>
+        {% if stats.promedios_materias %}
+        <div>
+            {% for p in stats.promedios_materias %}
+            <div>
+                <span>{{ p.nombre }}</span>
+                <span>{{ "%.1f"|format(p.promedio|float) }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted">Aun no hay notas registradas</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

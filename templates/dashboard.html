@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - AcademIA{% endblock %}
+{% block content %}
+<div class="min-h-screen px-6 lg:px-8 pt-4 pb-6 lg:pb-8">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight">
+                Bienvenido, <span class="text-accent">{{ session.usuario_nombre.split()[0] }}</span>
+            </h1>
+            <p class="text-tx-secondary text-sm mt-0.5">Resumen academico de hoy</p>
+        </div>
+        <a href="{{ url_for('generar_recomendacion_ia') }}"
+           class="inline-flex items-center gap-2 px-5 py-2.5 bg-accent text-black font-medium rounded-xl hover:brightness-110 transition-all duration-200 text-sm shadow-lg shadow-accent/20">
+            <i class="fas fa-wand-magic-sparkles"></i>
+            Analizar con IA
+        </a>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+        <div class="group bg-surface border border-bd rounded-2xl p-5 hover:border-accent/30 transition-all duration-200 cursor-default">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent group-hover:scale-110 transition-transform duration-200">
+                    <i class="fas fa-book text-sm"></i>
+                </div>
+                <span class="text-2xl font-bold">{{ stats.total_materias }}</span>
+            </div>
+            <div class="text-tx-muted text-xs font-medium uppercase tracking-wider">Materias</div>
+        </div>
+        <div class="group bg-surface border border-bd rounded-2xl p-5 hover:border-blue/30 transition-all duration-200 cursor-default">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 rounded-xl bg-blue/10 flex items-center justify-center text-blue group-hover:scale-110 transition-transform duration-200">
+                    <i class="fas fa-tasks text-sm"></i>
+                </div>
+                <span class="text-2xl font-bold">{{ stats.total_tareas }}</span>
+            </div>
+            <div class="text-tx-muted text-xs font-medium uppercase tracking-wider">Tareas totales</div>
+        </div>
+        <div class="group bg-surface border border-bd rounded-2xl p-5 hover:border-[#22c55e]/30 transition-all duration-200 cursor-default">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 rounded-xl bg-[#22c55e]/10 flex items-center justify-center text-[#22c55e] group-hover:scale-110 transition-transform duration-200">
+                    <i class="fas fa-check-circle text-sm"></i>
+                </div>
+                <span class="text-2xl font-bold">{{ stats.completadas }}</span>
+            </div>
+            <div class="text-tx-muted text-xs font-medium uppercase tracking-wider">Completadas</div>
+            {% if stats.total_tareas > 0 %}
+            <div class="mt-2 text-xs text-[#22c55e] font-medium">+{{ (stats.completadas / stats.total_tareas * 100)|int }}%</div>
+            {% endif %}
+        </div>
+        <div class="group bg-surface border border-bd rounded-2xl p-5 hover:border-[#f59e0b]/30 transition-all duration-200 cursor-default">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 rounded-xl bg-[#f59e0b]/10 flex items-center justify-center text-[#f59e0b] group-hover:scale-110 transition-transform duration-200">
+                    <i class="fas fa-clock text-sm"></i>
+                </div>
+                <span class="text-2xl font-bold">{{ stats.pendientes }}</span>
+            </div>
+            <div class="text-tx-muted text-xs font-medium uppercase tracking-wider">Pendientes</div>
+        </div>
+        <div class="group bg-surface border border-bd rounded-2xl p-5 hover:border-[#ef4444]/30 transition-all duration-200 cursor-default">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 rounded-xl bg-[#ef4444]/10 flex items-center justify-center text-[#ef4444] group-hover:scale-110 transition-transform duration-200">
+                    <i class="fas fa-exclamation-triangle text-sm"></i>
+                </div>
+                <span class="text-2xl font-bold">{{ stats.vencidas }}</span>
+            </div>
+            <div class="text-tx-muted text-xs font-medium uppercase tracking-wider">Vencidas</div>
+            {% if stats.vencidas > 0 %}
+            <div class="mt-2 text-xs text-[#ef4444] font-medium">Requiere atencion</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Widget Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Tareas Pendientes -->
+        <div class="bg-surface border border-bd rounded-2xl p-6 hover:border-bd-hover transition-all duration-200">
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="font-semibold text-sm flex items-center gap-2">
+                    <i class="fas fa-tasks text-accent"></i>
+                    Tareas Pendientes
+                </h3>
+                <a href="{{ url_for('tareas') }}" class="text-tx-muted hover:text-accent transition-colors text-sm">
+                    Ver todas <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+            {% if tareas %}
+            <div class="space-y-2">
+                {% for t in tareas[:5] %}
+                <div class="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                    <div class="w-1.5 h-1.5 rounded-full mt-2 flex-shrink-0
+                        {% if t.prioridad == 3 %}bg-[#ef4444]
+                        {% elif t.prioridad == 2 %}bg-[#f59e0b]
+                        {% else %}bg-[#22c55e]{% endif %}">
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium text-sm text-tx truncate">{{ t.titulo }}</div>
+                        <div class="text-xs text-tx-muted mt-0.5">{{ t.fecha_limite }}{% if t.materia %} &middot; {{ t.materia }}{% endif %}</div>
+                    </div>
+                    <span class="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0
+                        {% if t.dificultad == 'dificil' %}bg-[#ef4444]/10 text-[#ef4444]
+                        {% elif t.dificultad == 'media' %}bg-[#f59e0b]/10 text-[#f59e0b]
+                        {% else %}bg-[#22c55e]/10 text-[#22c55e]{% endif %}">
+                        {{ t.dificultad }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-12">
+                <div class="w-12 h-12 rounded-xl bg-white/[0.03] flex items-center justify-center mx-auto mb-3 text-tx-muted">
+                    <i class="fas fa-check text-lg"></i>
+                </div>
+                <p class="text-tx-muted text-sm">No hay tareas pendientes</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Recomendaciones IA -->
+        <div class="bg-surface border border-bd rounded-2xl p-6 hover:border-bd-hover transition-all duration-200">
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="font-semibold text-sm flex items-center gap-2">
+                    <i class="fas fa-robot text-violet"></i>
+                    Recomendaciones IA
+                </h3>
+                <a href="{{ url_for('horario_sugerido') }}" class="text-tx-muted hover:text-accent transition-colors text-sm">
+                    Ver mas <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+            {% if recomendaciones %}
+            <div class="space-y-3">
+                {% for r in recomendaciones[:3] %}
+                <div class="p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                    <div class="flex items-center gap-2 text-xs text-tx-muted mb-1.5">
+                        <i class="far fa-calendar"></i>
+                        <span>{{ r.fecha }}</span>
+                    </div>
+                    <div class="text-sm text-tx-secondary leading-relaxed">
+                        {% if r.contenido[:8] == 'HORARIO ' %}
+                        <span class="text-accent"><i class="fas fa-calendar-week mr-1"></i> Horario semanal generado</span>
+                        {% else %}
+                        {{ r.contenido[:150] }}{% if r.contenido|length > 150 %}...{% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-12">
+                <div class="w-12 h-12 rounded-xl bg-white/[0.03] flex items-center justify-center mx-auto mb-3 text-violet">
+                    <i class="fas fa-robot text-lg"></i>
+                </div>
+                <p class="text-tx-muted text-sm mb-4">Aun no hay recomendaciones</p>
+                <a href="{{ url_for('generar_recomendacion_ia') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-accent/10 text-accent text-sm font-medium rounded-xl hover:bg-accent/20 transition-colors">
+                    <i class="fas fa-wand-magic-sparkles"></i> Generar con IA
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Rendimiento Academico -->
+        <div class="bg-surface border border-bd rounded-2xl p-6 hover:border-bd-hover transition-all duration-200">
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="font-semibold text-sm flex items-center gap-2">
+                    <i class="fas fa-star text-blue"></i>
+                    Rendimiento Academico
+                </h3>
+                <a href="{{ url_for('estadisticas') }}" class="text-tx-muted hover:text-accent transition-colors text-sm">
+                    Ver mas <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+            {% if stats.promedios_materias %}
+            <div class="space-y-2">
+                {% for p in stats.promedios_materias[:4] %}
+                <div class="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                    <span class="text-sm text-tx">{{ p.nombre }}</span>
+                    <span class="text-sm font-semibold px-3 py-0.5 rounded-full
+                        {% if p.promedio >= 4 %}bg-[#22c55e]/10 text-[#22c55e]
+                        {% elif p.promedio >= 3 %}bg-[#f59e0b]/10 text-[#f59e0b]
+                        {% else %}bg-[#ef4444]/10 text-[#ef4444]{% endif %}">
+                        {{ "%.1f"|format(p.promedio) }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-12">
+                <div class="w-12 h-12 rounded-xl bg-white/[0.03] flex items-center justify-center mx-auto mb-3 text-blue">
+                    <i class="fas fa-star text-lg"></i>
+                </div>
+                <p class="text-tx-muted text-sm">No hay notas registradas</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Acciones Rapidas -->
+        <div class="bg-surface border border-bd rounded-2xl p-6 hover:border-bd-hover transition-all duration-200">
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="font-semibold text-sm flex items-center gap-2">
+                    <i class="fas fa-bolt text-[#f59e0b]"></i>
+                    Acciones Rapidas
+                </h3>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <a href="{{ url_for('tareas') }}"
+                   class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-bd hover:bg-accent/5 hover:border-accent/20 transition-all duration-200 group">
+                    <div class="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <span class="text-xs font-medium text-tx-secondary">Nueva Tarea</span>
+                </a>
+                <a href="{{ url_for('horarios') }}"
+                   class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-bd hover:border-violet/20 hover:bg-violet/5 transition-all duration-200 group">
+                    <div class="w-10 h-10 rounded-lg bg-violet/10 flex items-center justify-center text-violet group-hover:scale-110 transition-transform">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <span class="text-xs font-medium text-tx-secondary">Nuevo Horario</span>
+                </a>
+                <a href="{{ url_for('notas') }}"
+                   class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-bd hover:border-blue/20 hover:bg-blue/5 transition-all duration-200 group">
+                    <div class="w-10 h-10 rounded-lg bg-blue/10 flex items-center justify-center text-blue group-hover:scale-110 transition-transform">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <span class="text-xs font-medium text-tx-secondary">Registrar Nota</span>
+                </a>
+                <a href="{{ url_for('horario_sugerido') }}"
+                   class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-bd hover:border-accent/20 hover:bg-accent/5 transition-all duration-200 group">
+                    <div class="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                    </div>
+                    <span class="text-xs font-medium text-tx-secondary">Generar con IA</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

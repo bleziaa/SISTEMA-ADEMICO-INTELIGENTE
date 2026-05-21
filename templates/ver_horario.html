@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+{% block title %}Horario Visual - AcademIA{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-calendar-week"></i> Horario de Estudio Semanal</h1>
+    <div class="header-actions">
+        <a href="{{ url_for('generar_horario_ia') }}" class="btn-primary"><i class="fas fa-wand-magic-sparkles"></i> Regenerar</a>
+        <a href="{{ url_for('horario_sugerido') }}" class="btn-small"><i class="fas fa-list"></i> Vista texto</a>
+    </div>
+</div>
+
+<div class="horario-summary">
+    <div class="summary-badge">
+        <i class="fas fa-tasks icon"></i>
+        <span><strong>{{ data.asignadas }}</strong> / {{ data.total_tareas }} tareas asignadas</span>
+    </div>
+    <div class="summary-badge">
+        <i class="far fa-calendar icon"></i>
+        <span>Generado: {{ data.fecha }}</span>
+    </div>
+</div>
+
+<div class="horario-visual-grid">
+    {% for dia in data.semana %}
+    <div class="dia-columna">
+        <div class="dia-header{% if dia.bloques %} has-bloques{% endif %}">{{ dia.dia[:3] }}</div>
+        <div class="dia-body">
+            {% if dia.bloques %}
+            <div class="bloques-container">
+                {% for b in dia.bloques %}
+                {% if b.es_descanso %}
+                <div class="bloque descanso">
+                    <div class="descanso-inner">
+                        <i class="fas fa-mug-saucer"></i>
+                        <div class="descanso-info">
+                            <span class="descanso-titulo">Descanso</span>
+                            <span class="descanso-time">{{ b.inicio }} &ndash; {{ b.fin }}</span>
+                        </div>
+                        <span class="descanso-duracion">{{ b.tiempo }}m</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="bloque tarea nivel-{{ b.dificultad }}">
+                    <div class="bloque-indicator"></div>
+                    <div class="bloque-body">
+                        <div class="bloque-top">
+                            <span class="bloque-titulo">{{ b.titulo }}</span>
+                            <span class="dificultad-badge {{ b.dificultad }}">{{ b.dificultad }}</span>
+                        </div>
+                        <div class="bloque-meta">
+                            <span><i class="far fa-clock"></i> {{ b.inicio }} &ndash; {{ b.fin }}</span>
+                            <span><i class="fas fa-hourglass-half"></i> {{ b.tiempo }} min</span>
+                        </div>
+                        <div class="bloque-entrega">
+                            <i class="far fa-calendar-alt"></i> Entrega: {{ b.fecha_limite }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="dia-vacio">
+                <i class="fas fa-check-circle"></i>
+                <span>Libre</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="leyenda">
+    <span class="leyenda-item"><span class="dot alta"></span> Alta</span>
+    <span class="leyenda-item"><span class="dot media"></span> Media</span>
+    <span class="leyenda-item"><span class="dot baja"></span> Baja</span>
+    <span class="leyenda-item"><span class="dot descanso"></span> Descanso</span>
+</div>
+
+<style>
+.horario-summary {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+}
+.summary-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 24px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+.summary-badge .icon { color: var(--primary); font-size: 1.3rem; }
+.summary-badge strong { color: var(--primary); font-size: 1.1rem; }
+
+.horario-visual-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+    margin-bottom: 24px;
+}
+.dia-columna {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: all 0.3s;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+.dia-columna:hover {
+    box-shadow: 0 8px 32px rgba(46,206,160,0.08);
+    border-color: rgba(46,206,160,0.15);
+    transform: translateY(-2px);
+}
+.dia-header {
+    text-align: center;
+    padding: 16px 6px 14px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    transition: all 0.3s;
+}
+.dia-header.has-bloques {
+    color: var(--primary);
+    background: linear-gradient(180deg, rgba(46,206,160,0.08), transparent);
+}
+.dia-body {
+    padding: 10px;
+    min-height: 120px;
+    flex: 1;
+}
+
+.bloques-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.bloque {
+    border-radius: 12px;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: default;
+}
+.bloque:hover {
+    transform: translateY(-2px);
+}
+
+.bloque.descanso {
+    background: rgba(255,255,255,0.03);
+    border: 1px dashed rgba(255,255,255,0.08);
+}
+.descanso-inner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+}
+.descanso-inner > i {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    opacity: 0.5;
+}
+.descanso-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.descanso-titulo {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.descanso-time {
+    font-size: 0.65rem;
+    color: rgba(255,255,255,0.2);
+}
+.descanso-duracion {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    opacity: 0.4;
+}
+
+.bloque.tarea.nivel-alta {
+    background: linear-gradient(135deg, rgba(225,112,85,0.12), rgba(225,112,85,0.04));
+    border: 1px solid rgba(225,112,85,0.2);
+}
+.bloque.tarea.nivel-media {
+    background: linear-gradient(135deg, rgba(253,203,110,0.1), rgba(253,203,110,0.03));
+    border: 1px solid rgba(253,203,110,0.15);
+}
+.bloque.tarea.nivel-baja {
+    background: linear-gradient(135deg, rgba(0,184,148,0.1), rgba(0,184,148,0.03));
+    border: 1px solid rgba(0,184,148,0.15);
+}
+.bloque.tarea.nivel-alta:hover {
+    box-shadow: 0 4px 16px rgba(225,112,85,0.2);
+    border-color: rgba(225,112,85,0.35);
+}
+.bloque.tarea.nivel-media:hover {
+    box-shadow: 0 4px 16px rgba(253,203,110,0.2);
+    border-color: rgba(253,203,110,0.3);
+}
+.bloque.tarea.nivel-baja:hover {
+    box-shadow: 0 4px 16px rgba(0,184,148,0.2);
+    border-color: rgba(0,184,148,0.3);
+}
+
+.bloque-indicator {
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+}
+.nivel-alta .bloque-indicator {
+    background: linear-gradient(90deg, var(--danger), rgba(225,112,85,0.3));
+}
+.nivel-media .bloque-indicator {
+    background: linear-gradient(90deg, var(--warning), rgba(253,203,110,0.3));
+}
+.nivel-baja .bloque-indicator {
+    background: linear-gradient(90deg, var(--success), rgba(0,184,148,0.3));
+}
+
+.bloque-body {
+    padding: 10px 12px 12px;
+}
+
+.bloque-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+.bloque-titulo {
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--text);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.dificultad-badge {
+    font-size: 0.55rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    flex-shrink: 0;
+}
+.dificultad-badge.alta { background: rgba(225,112,85,0.2); color: var(--danger); }
+.dificultad-badge.media { background: rgba(253,203,110,0.2); color: var(--warning); }
+.dificultad-badge.baja { background: rgba(0,184,148,0.2); color: var(--success); }
+
+.bloque-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+.bloque-meta span { display: flex; align-items: center; gap: 4px; }
+.bloque-meta i { font-size: 0.6rem; opacity: 0.6; }
+
+.bloque-entrega {
+    font-size: 0.6rem;
+    color: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.bloque-entrega i { font-size: 0.55rem; }
+
+.dia-vacio {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 28px 0;
+    color: var(--text-muted);
+    gap: 6px;
+    font-size: 0.7rem;
+    opacity: 0.4;
+}
+.dia-vacio i { font-size: 1.5rem; }
+
+.leyenda {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    padding: 16px 24px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+.leyenda-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+.dot.alta { background: var(--danger); box-shadow: 0 0 6px rgba(225,112,85,0.4); }
+.dot.media { background: var(--warning); box-shadow: 0 0 6px rgba(253,203,110,0.3); }
+.dot.baja { background: var(--success); box-shadow: 0 0 6px rgba(0,184,148,0.3); }
+.dot.descanso { background: var(--text-muted); border: 1px dashed rgba(255,255,255,0.3); }
+
+@media (max-width: 1100px) {
+    .horario-visual-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 700px) {
+    .horario-visual-grid { grid-template-columns: repeat(2, 1fr); }
+    .horario-summary { flex-direction: column; }
+}
+@media (max-width: 400px) {
+    .horario-visual-grid { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Materias - Asistente Academico{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-book"></i> Mis Materias</h1>
+    <button class="btn-primary" onclick="document.getElementById('modal-materia').classList.add('active')"><i class="fas fa-plus-circle"></i> Nueva Materia</button>
+</div>
+
+<div class="grid-cards">
+    {% for m in materias %}
+    <div class="item-card" style="border-left: 4px solid {{ m.color }}">
+        <div>
+            <h3>{{ m.nombre }}</h3>
+            <div>
+                <button class="btn-icon" onclick="editarMateria({{ m.id_materia }}, '{{ m.nombre }}', '{{ m.profesor or '' }}', '{{ m.color }}')" title="Editar"><i class="fas fa-edit"></i></button>
+                <a href="{{ url_for('materias_eliminar', id=m.id_materia) }}" class="btn-icon" onclick="return confirm('Eliminar esta materia?')" title="Eliminar"><i class="fas fa-trash-alt"></i></a>
+            </div>
+        </div>
+        {% if m.profesor %}<p><i class="fas fa-chalkboard-teacher"></i> {{ m.profesor }}</p>{% endif %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No tienes materias registradas</p>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="modal" id="modal-materia">
+    <div class="modal-content">
+        <span class="modal-close" onclick="this.closest('.modal').classList.remove('active')">&times;</span>
+        <h2 id="modal-title">Nueva Materia</h2>
+        <form method="POST" action="{{ url_for('materias_crear') }}" id="form-materia">
+            <div class="form-group">
+                <label>Nombre de la materia</label>
+                <input type="text" name="nombre" required placeholder="Ej: Matematicas">
+            </div>
+            <div class="form-group">
+                <label>Profesor (opcional)</label>
+                <input type="text" name="profesor" placeholder="Nombre del profesor">
+            </div>
+            <div class="form-group">
+                <label>Color</label>
+                <input type="color" name="color" value="#3498db">
+            </div>
+            <button type="submit" class="btn-primary btn-full">Guardar</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function editarMateria(id, nombre, profesor, color) {
+    const modal = document.getElementById('modal-materia');
+    document.getElementById('modal-title').textContent = 'Editar Materia';
+    const form = document.getElementById('form-materia');
+    form.action = '/materias/editar/' + id;
+    form.querySelector('[name=nombre]').value = nombre;
+    form.querySelector('[name=profesor]').value = profesor;
+    form.querySelector('[name=color]').value = color;
+    modal.classList.add('active');
+}
+document.querySelectorAll('.modal-close').forEach(function(el) {
+    el.addEventListener('click', function() { this.closest('.modal').classList.remove('active'); });
+});
+</script>
+{% endblock %}

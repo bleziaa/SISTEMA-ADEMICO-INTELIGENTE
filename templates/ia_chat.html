@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Chat IA - AcademIA{% endblock %}
+{% block content %}
+<div class="h-[calc(100vh-var(--topbar-h))] flex flex-col">
+    <!-- Chat Header -->
+    <div class="flex items-center gap-3 px-6 py-4 border-b border-white/[0.06] bg-surface/50">
+        <div class="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent">
+            <i class="fas fa-robot text-lg"></i>
+        </div>
+        <div>
+            <h2 class="font-semibold text-sm">Asistente AcademIA</h2>
+            <p class="text-xs text-tx-muted">Preguntame sobre tus materias, tareas, horarios...</p>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    <div id="chatMessages" class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div class="flex items-start gap-3 max-w-3xl">
+            <div class="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent text-xs flex-shrink-0 mt-0.5">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="bg-surface border border-white/[0.06] rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-tx-secondary leading-relaxed">
+                Hola! Soy tu asistente academico. Puedo ayudarte a:
+                <ul class="mt-2 space-y-1 list-disc list-inside text-xs">
+                    <li>Ver y organizar tus tareas</li>
+                    <li>Consultar tus materias</li>
+                    <li>Crear nuevas tareas y materias</li>
+                    <li>Marcar tareas como completadas</li>
+                    <li>Dar consejos academicos</li>
+                </ul>
+                <p class="mt-2 text-accent">Que necesitas hoy?</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Typing indicator -->
+    <div id="typingIndicator" class="hidden px-6 py-2">
+        <div class="flex items-center gap-2 text-xs text-tx-muted">
+            <div class="flex gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-tx-muted animate-bounce" style="animation-delay:0ms"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-tx-muted animate-bounce" style="animation-delay:150ms"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-tx-muted animate-bounce" style="animation-delay:300ms"></span>
+            </div>
+            <span>AcademIA esta pensando...</span>
+        </div>
+    </div>
+
+    <!-- Input -->
+    <div class="px-6 py-4 border-t border-white/[0.06] bg-surface/30">
+        <form id="chatForm" class="flex items-center gap-3">
+            <input id="chatInput" type="text" autofocus
+                   class="flex-1 bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-tx placeholder-tx-muted outline-none focus:border-accent/40 focus:bg-white/[0.05] transition-all duration-200"
+                   placeholder="Escribe tu mensaje..." />
+            <button type="submit" id="sendBtn"
+                    class="w-10 h-10 rounded-xl bg-accent text-black flex items-center justify-center hover:brightness-110 transition-all duration-200 disabled:opacity-40">
+                <i class="fas fa-paper-plane text-sm"></i>
+            </button>
+        </form>
+        <p class="text-xs text-tx-muted mt-2">Presiona Enter para enviar</p>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const chatMessages = document.getElementById('chatMessages');
+const chatForm = document.getElementById('chatForm');
+const chatInput = document.getElementById('chatInput');
+const sendBtn = document.getElementById('sendBtn');
+const typingIndicator = document.getElementById('typingIndicator');
+
+function addMessage(text, isUser) {
+    const div = document.createElement('div');
+    div.className = 'flex items-start gap-3 max-w-3xl ' + (isUser ? 'ml-auto flex-row-reverse' : '');
+    div.innerHTML = `
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs flex-shrink-0 mt-0.5
+            ${isUser ? 'bg-violet/10 text-violet' : 'bg-accent/10 text-accent'}">
+            <i class="fas ${isUser ? 'fa-user' : 'fa-robot'}"></i>
+        </div>
+        <div class="${isUser ? 'bg-accent/10 text-tx border-accent/20' : 'bg-surface text-tx-secondary border-white/[0.06]'} border rounded-2xl ${isUser ? 'rounded-tr-sm' : 'rounded-tl-sm'} px-4 py-3 text-sm leading-relaxed">
+            ${text}
+        </div>
+    `;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function setLoading(loading) {
+    typingIndicator.classList.toggle('hidden', !loading);
+    sendBtn.disabled = loading;
+    chatInput.disabled = loading;
+}
+
+chatForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const msg = chatInput.value.trim();
+    if (!msg) return;
+
+    addMessage(msg, true);
+    chatInput.value = '';
+    setLoading(true);
+
+    try {
+        const res = await fetch('/ia-chat', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({mensaje: msg})
+        });
+        const data = await res.json();
+        addMessage(data.respuesta.replace(/\\n/g, '<br>'), false);
+    } catch (err) {
+        addMessage('Error de conexion. Intenta de nuevo.', false);
+    } finally {
+        setLoading(false);
+        chatInput.focus();
+    }
+});
+</script>
+{% endblock %}
