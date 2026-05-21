@@ -337,5 +337,7 @@ def ia_chat():
     return render_template("ia_chat.html")
 
 if __name__ == "__main__":
+    import os
+    port = int(os.getenv("PORT", 5000))
     print(" Asistente Academico Inteligente")
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=port, host="0.0.0.0")
