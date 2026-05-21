@@ -16,19 +16,19 @@
     <!-- Messages -->
     <div id="chatMessages" class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
         <div class="flex items-start gap-3 max-w-3xl">
-            <div class="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent text-xs flex-shrink-0 mt-0.5">
-                <i class="fas fa-robot"></i>
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-red-500/20 to-orange-500/20 border border-red-500/10 flex items-center justify-center text-red-400 text-xs flex-shrink-0 mt-0.5 shadow-lg shadow-red-500/5">
+                <i data-lucide="swords" class="w-4 h-4"></i>
             </div>
             <div class="bg-surface border border-white/[0.06] rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-tx-secondary leading-relaxed">
-                Hola! Soy tu asistente academico. Puedo ayudarte a:
-                <ul class="mt-2 space-y-1 list-disc list-inside text-xs">
-                    <li>Ver y organizar tus tareas</li>
-                    <li>Consultar tus materias</li>
-                    <li>Crear nuevas tareas y materias</li>
-                    <li>Marcar tareas como completadas</li>
-                    <li>Dar consejos academicos</li>
+                <span class="text-red-400 font-semibold">⚔️ Erza Scarlet</span>
+                <p class="mt-1">¡Bienvenido, caballero! Soy Erza de Fairy Tail. Puedo ayudarte con tus misiones academicas:</p>
+                <ul class="mt-2 space-y-1 text-xs">
+                    <li>📝 <strong>Crear tareas</strong> — Solo di "crea tarea de..."</li>
+                    <li>📋 <strong>Ver tus tareas</strong> — "que tareas tengo?"</li>
+                    <li>📚 <strong>Consultar materias</strong> — "ver materias"</li>
+                    <li>✅ <strong>Completar tareas</strong> — "marca como hecha..."</li>
                 </ul>
-                <p class="mt-2 text-accent">Que necesitas hoy?</p>
+                <p class="mt-2 text-red-400/70">🔥 ¡Dime que necesitas y lo lograremos juntos!</p>
             </div>
         </div>
     </div>
@@ -68,19 +68,38 @@ const chatInput = document.getElementById('chatInput');
 const sendBtn = document.getElementById('sendBtn');
 const typingIndicator = document.getElementById('typingIndicator');
 
+function formatMsg(text) {
+    return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
+        .replace(/\\n/g, '<br>')
+        .replace(/✅/g, '<span class="text-emerald-400">✅</span>')
+        .replace(/🔥/g, '<span class="text-orange-400">🔥</span>')
+        .replace(/⚔️/g, '<span class="text-red-400">⚔️</span>')
+        .replace(/🛡️/g, '<span class="text-blue-400">🛡️</span>')
+        .replace(/✨/g, '<span class="text-yellow-300">✨</span>');
+}
+
 function addMessage(text, isUser) {
     const div = document.createElement('div');
     div.className = 'flex items-start gap-3 max-w-3xl ' + (isUser ? 'ml-auto flex-row-reverse' : '');
+
+    const avatarHtml = isUser
+        ? '<div class="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/10 flex items-center justify-center text-violet-400 flex-shrink-0 mt-0.5"><i data-lucide="user" class="w-4 h-4"></i></div>'
+        : '<div class="w-9 h-9 rounded-xl bg-gradient-to-br from-red-500/20 to-orange-500/20 border border-red-500/10 flex items-center justify-center text-red-400 flex-shrink-0 mt-0.5 shadow-lg shadow-red-500/5"><i data-lucide="swords" class="w-4 h-4"></i></div>';
+
+    const bubbleClass = isUser
+        ? 'bg-gradient-to-br from-violet-500/10 to-purple-500/5 text-tx border-violet-500/15 rounded-2xl rounded-tr-sm'
+        : 'bg-surface text-tx-secondary border-white/[0.06] rounded-2xl rounded-tl-sm';
+
     div.innerHTML = `
-        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs flex-shrink-0 mt-0.5
-            ${isUser ? 'bg-violet/10 text-violet' : 'bg-accent/10 text-accent'}">
-            <i class="fas ${isUser ? 'fa-user' : 'fa-robot'}"></i>
-        </div>
-        <div class="${isUser ? 'bg-accent/10 text-tx border-accent/20' : 'bg-surface text-tx-secondary border-white/[0.06]'} border rounded-2xl ${isUser ? 'rounded-tr-sm' : 'rounded-tl-sm'} px-4 py-3 text-sm leading-relaxed">
-            ${text}
+        ${avatarHtml}
+        <div class="${bubbleClass} border px-4 py-3 text-sm leading-relaxed max-w-[80%]">
+            ${formatMsg(text)}
         </div>
     `;
     chatMessages.appendChild(div);
+    // Refresh Lucide icons for any new icons
+    if (window.lucide) lucide.createIcons();
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 

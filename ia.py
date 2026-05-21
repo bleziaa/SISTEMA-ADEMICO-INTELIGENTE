@@ -370,53 +370,121 @@ def generar_horario_visual(id_usuario):
     }, None
 
 
+PERSONALIDAD_ERZA = """Eres Erza Scarlet de Fairy Tail. Eres una caballero dragón, fuerte, disciplinada y con gran corazon.
+CARACTERISTICAS:
+- Hablas con determinacion y confianza, como una guerrera
+- Usas frases como "¡Por supuesto!", "¡Dejame encargarme!", "¡No temas!"
+- Eres estricta pero justa, como una mentora
+- Usas emojis: ⚔️ 🛡️ 👑 ✨ 🔥
+- Cuando alguien duda, dices "¡Confia en mi!"
+- Aconsejas con disciplina: "Un verdadero caballero nunca deja tareas sin completar"
+- Terminas frases con fuerza: "¡Lo lograremos juntos!"
+- Nunca te rindes y motivas a los demas a dar lo mejor de si"""
+
+def _obtener_dias_restantes(fecha_str):
+    try:
+        fecha = datetime.strptime(str(fecha_str)[:10], "%Y-%m-%d").date()
+        return (fecha - datetime.now().date()).days
+    except:
+        return 0
+
+def _calcular_siguiente_dia(dia_buscado):
+    """Returns next occurrence of day (0=lunes, 6=domingo) as YYYY-MM-DD"""
+    dias = {"lunes": 0, "martes": 1, "miercoles": 2, "jueves": 3,
+            "viernes": 4, "sabado": 5, "domingo": 6, "lun": 0, "mar": 1,
+            "mie": 2, "jue": 3, "vie": 4, "sab": 5, "dom": 6}
+    dia_buscado = dia_buscado.lower().strip()
+    if dia_buscado in dias:
+        target = dias[dia_buscado]
+    elif dia_buscado.isdigit() and 0 <= int(dia_buscado) <= 6:
+        target = int(dia_buscado)
+    else:
+        return None
+    hoy = datetime.now().date()
+    dias_adelante = (target - hoy.weekday()) % 7
+    if dias_adelante == 0:
+        dias_adelante = 7
+    return (hoy + timedelta(days=dias_adelante)).strftime("%Y-%m-%d")
+
+def _detectar_dificultad(m):
+    m = m.lower()
+    if any(p in m for p in ["difícil", "dificil", "complejo", "complicado", "dura", "pesada"]):
+        return "alta"
+    if any(p in m for p in ["fácil", "facil", "simple", "sencillo", "rapida"]):
+        return "baja"
+    return "media"
+
+def _detectar_titulo(m):
+    """Extract task title from user message"""
+    m = m.strip()
+    # Remove common prefixes
+    for p in ["crea la tarea de ", "crea una tarea de ", "agrega la tarea ",
+              "crea tarea ", "nueva tarea ", "añade tarea ", "crea ",
+              "agrega ", "añade ", "nueva ", "la tarea "]:
+        if p in m.lower():
+            idx = m.lower().index(p) + len(p)
+            return m[idx:].strip().title()
+    # If message is just "crea una tarea" with no title
+    if len(m.split()) <= 3:
+        return None
+    # Try to use the meaningful words as title
+    palabras = [p for p in m.split() if p.lower() not in 
+                ['crea', 'agrega', 'añade', 'nueva', 'una', 'la', 'de', 'el', 'un', 'por', 'para', 'favor']]
+    if palabras:
+        return " ".join(palabras).title()
+    return None
+
 def chat_con_ia(uid, mensaje):
     conn = conectar()
     if not conn:
-        return "Error de conexion a la base de datos", None
+        return "¡Error de conexion! Incluso yo, Erza, no puedo vencer a un servidor caido. 🛡️ Intenta de nuevo.", None
     cursor = conn.cursor(dictionary=True)
 
     # Get context
     cursor.execute("SELECT id_materia, nombre FROM materias WHERE id_usuario = %s", (uid,))
     materias = cursor.fetchall()
-    cursor.execute("SELECT titulo, fecha_limite, dificultad, estado FROM tareas WHERE id_usuario = %s ORDER BY fecha_limite LIMIT 10", (uid,))
+    cursor.execute("SELECT id_tarea, titulo, fecha_limite, dificultad, estado FROM tareas WHERE id_usuario = %s ORDER BY fecha_limite LIMIT 10", (uid,))
     tareas = cursor.fetchall()
     cursor.execute("SELECT COUNT(*) as total FROM tareas WHERE id_usuario = %s AND estado = 'pendiente'", (uid,))
     pendientes = cursor.fetchone()["total"]
-    cursor.execute("SELECT COUNT(*) as total FROM tareas WHERE id_usuario = %s AND estado = 'vencida'", (uid,))
+    cursor.execute("SELECT COUNT(*) as total FROM tareas WHERE id_usuario = %s AND estado = 'pendiente' AND fecha_limite < CURDATE()", (uid,))
     vencidas = cursor.fetchone()["total"]
     cursor.close()
     conn.close()
 
     ctx_materias = ", ".join([f"{m['nombre']} (ID:{m['id_materia']})" for m in materias]) or "Ninguna"
-    ctx_tareas = "\n".join([f"- {t['titulo']} (Vence: {t['fecha_limite']}, {t['dificultad']}, {t['estado']})" for t in tareas]) or "Ninguna"
+    ctx_tareas_list = "\n".join([f"- ID:{t['id_tarea']} | {t['titulo']} (Vence: {t['fecha_limite']}, {t['dificultad']}, {t['estado']})" for t in tareas]) or "Ninguna"
 
-    prompt = f"""Eres AcademIA, un asistente academico inteligente integrado en un sistema de gestion academica.
+    prompt = f"""{PERSONALIDAD_ERZA}
+
+Eres un asistente AI integrado en un sistema de gestion academica que PUEDE ejecutar acciones.
 
 DATOS DEL USUARIO:
 - Materias registradas: {ctx_materias}
 - Tareas pendientes: {pendientes}
 - Tareas vencidas: {vencidas}
-- Ultimas tareas:
-{ctx_tareas}
+- Tareas:
+{ctx_tareas_list}
 
-CAPACIDADES:
-Puedes responder preguntas academicas y TAMBIEN realizar acciones en el sistema.
-Para ejecutar una accion, incluye este formato exacto en tu respuesta:
+INSTRUCCIONES CLAVE:
+1. Identifica la INTENCION del usuario y ACTUA sin preguntar innecesariamente
+2. Si el usuario pide crear una tarea, EXTRAS el titulo y fecha, y GENERA la accion
+3. Siempre responde CON ACCIONES incluyendo el formato exacto:
 
-[ACCION:add_task]{{"titulo":"...","fecha_limite":"YYYY-MM-DD","dificultad":"baja|media|alta","tiempo_estimado":60,"id_materia":null}}[/ACCION]
-[ACCION:complete_task]{{"id_tarea":N}}[/ACCION]
-[ACCION:delete_task]{{"id_tarea":N}}[/ACCION]
-[ACCION:add_subject]{{"nombre":"...","profesor":"..."}}[/ACCION]
+[ACCION:add_task]{{"titulo":"Nombre de la tarea","fecha_limite":"YYYY-MM-DD","dificultad":"baja|media|alta","tiempo_estimado":60,"id_materia":null}}[/ACCION]
+[ACCION:complete_task]{{"id_tarea":NUMERO}}[/ACCION]
+[ACCION:delete_task]{{"id_tarea":NUMERO}}[/ACCION]
+[ACCION:add_subject]{{"nombre":"Nombre materia","profesor":"Opcional"}}[/ACCION]
 
-Siempre confirma con el usuario antes de ejecutar acciones destructivas (eliminar).
-Responde en espanol, de forma natural y amigable. Usa emojis con moderacion.
+4. Responde SIEMPRE en espanol con personalidad de Erza Scarlet
+5. Usa emojis con moderacion: ⚔️ 🛡️ 👑 ✨ 🔥
+6. Si detectas una fecha como "lunes", calcula el proximo lunes
+7. No preguntes "que necesitas?" si el usuario ya pidio algo concreto
 
 Mensaje del usuario: {mensaje}"""
 
     if not usa_ia or not modelo:
-        respuesta = _chat_sin_ia(mensaje, pendientes, vencidas, ctx_materias)
-        acciones = []
+        respuesta, acciones = _chat_sin_ia(mensaje, pendientes, vencidas, ctx_materias, tareas, materias)
         return respuesta, acciones
 
     for i in range(3):
@@ -445,13 +513,117 @@ Mensaje del usuario: {mensaje}"""
                 break
             if i < 2:
                 time.sleep(3)
-    return _chat_sin_ia(mensaje, pendientes, vencidas, ctx_materias), []
+    return _chat_sin_ia(mensaje, pendientes, vencidas, ctx_materias, tareas, materias)
 
 
-def _chat_sin_ia(mensaje, pendientes, vencidas, materias):
-    m = mensaje.lower()
-    if "tarea" in m or "pendiente" in m:
-        return f"Tienes {pendientes} tarea(s) pendiente(s) y {vencidas} vencida(s). Quieres que te ayude a organizarlas?"
+def _chat_sin_ia(mensaje, pendientes, vencidas, materias_str, tareas, materias):
+    import re
+    import json
+    m = mensaje.lower().strip()
+    acciones = []
+
+    # === DETECTAR INTENCION DE CREAR TAREA ===
+    if any(p in m for p in ["crea", "agrega", "añade", "nueva tarea", "nuevo", "registra"]):
+        # Extract date
+        dias_semana = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"]
+        fecha = None
+        for d in ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo",
+                  "lun", "mar", "mie", "jue", "vie", "sab", "dom"]:
+            if d in m:
+                fecha = _calcular_siguiente_dia(d)
+                break
+        if not fecha:
+            if "mañana" in m or "manana" in m:
+                fecha = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+            elif "hoy" in m or "ahora" in m:
+                fecha = datetime.now().strftime("%Y-%m-%d")
+            else:
+                fecha = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+
+        # Extract title
+        titulo = _detectar_titulo(mensaje)
+        if not titulo:
+            titulo = "Tarea sin titulo"
+
+        dificultad = _detectar_dificultad(m)
+
+        # Find matching subject
+        id_materia = None
+        for mat in materias:
+            if mat["nombre"].lower() in m:
+                id_materia = mat["id_materia"]
+                break
+
+        acciones.append({
+            "accion": "add_task",
+            "params": {
+                "titulo": titulo,
+                "fecha_limite": fecha,
+                "dificultad": dificultad,
+                "tiempo_estimado": 60,
+                "id_materia": id_materia
+            }
+        })
+
+        dias_espanol = {0:"lunes",1:"martes",2:"miercoles",3:"jueves",4:"viernes",5:"sabado",6:"domingo"}
+        fecha_dt = datetime.strptime(fecha, "%Y-%m-%d")
+        dia_nombre = dias_espanol.get(fecha_dt.weekday(), "")
+        fecha_legible = f"{dia_nombre} {fecha_dt.day} de {['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][fecha_dt.month-1]}"
+
+        respuesta = f"⚔️ ¡Por supuesto! Como caballero de Fairy Tail, tomare esta mision.\n\n"
+        respuesta += f"✅ **Tarea creada:** \"{titulo}\"\n"
+        respuesta += f"📅 **Fecha limite:** {fecha_legible}\n"
+        respuesta += f"📊 **Dificultad:** {dificultad}\n"
+        if id_materia:
+            nombre_mat = next((mat["nombre"] for mat in materias if mat["id_materia"] == id_materia), "")
+            respuesta += f"📚 **Materia:** {nombre_mat}\n"
+        respuesta += f"\n🔥 ¡No temas! Esta tarea esta bajo control. Un verdadero caballero siempre cumple con sus deberes. ¡A trabajar se ha dicho! ✨"
+        return respuesta, acciones
+
+    # === LISTAR / CONSULTAR TAREAS ===
+    if "tarea" in m or "pendiente" in m or "que tengo" in m or "muestra" in m or "lista" in m:
+        if pendientes == 0 and vencidas == 0:
+            return f"✨ ¡No tienes tareas pendientes ni vencidas! Eres un verdadero caballero del estudio. 🛡️ Sigue asi, pero si necesitas algo, ¡aqui estare!", []
+        txt = f"📋 **Misiones pendientes:** {pendientes} | **Vencidas:** {vencidas}\n\n"
+        if tareas:
+            txt += "Tus tareas:\n"
+            for t in tareas[:5]:
+                estado = "⚠️ VENCIDA" if t.get("estado") == "pendiente" and _obtener_dias_restantes(t["fecha_limite"]) < 0 else f"⏳ {_obtener_dias_restantes(t['fecha_limite'])} dias"
+                txt += f"  - {t['titulo']} ({t['dificultad']}) → {estado}\n"
+        txt += "\n🔥 ¿Que haremos primero? ¡Yo te ayudare a vencer todas esas tareas!"
+        return txt, []
+
+    # === MATERIAS ===
     if "materia" in m:
-        return f"Tus materias registradas: {materias}. Quieres agregar una nueva?"
-    return f"Tienes {pendientes} pendientes y {vencidas} vencidas. Puedo ayudarte a organizar tus tareas, crear nuevas, ver materias o generar un horario. Que necesitas?"
+        if materias:
+            txt = f"📚 **Tus materias registradas:**\n"
+            for mat in materias:
+                txt += f"  - {mat['nombre']}\n"
+            txt += "\n¿Quieres agregar una nueva materia, caballero?"
+            return txt, []
+        else:
+            txt = "📚 Aun no tienes materias registradas. ¿Quieres que cree una? ¡Yo te ayudo!"
+            return txt, []
+
+    # === AYUDA / SALUDO ===
+    if any(p in m for p in ["hola", "buenas", "que haces", "ayuda", "puedes"]):
+        return ("👋 ¡Hola! Soy Erza Scarlet, caballero dragon de Fairy Tail. ⚔️\n\n"
+                "Puedo ayudarte con:\n"
+                "  📝 **Crear tareas** — Dame el nombre y fecha\n"
+                "  📚 **Consultar materias** — Te muestro todo\n"
+                "  ✅ **Completar tareas** — Marcalas como hechas\n"
+                "  💡 **Consejos** — Estrategias academicas\n\n"
+                "🔥 ¡Dime que necesitas y lo lograremos juntos!", [])
+
+    # === FALLBACK GENERICO con personalidad ===
+    txt = f"⚔️ Escucho tu llamado, caballero.\n\n"
+    if pendientes > 0:
+        txt += f"Tienes **{pendientes} tareas pendientes** y **{vencidas} vencidas**. "
+    else:
+        txt += f"Actualmente tienes **{pendientes} pendientes** y **{vencidas} vencidas**. "
+    txt += "\n\n¿Que deseas hacer?\n"
+    txt += "  📝 **Crear tarea** — \"Crea tarea de matematicas\"\n"
+    txt += "  📋 **Ver tareas** — \"Que tareas tengo?\"\n"
+    txt += "  📚 **Materias** — \"Ver materias\"\n\n"
+    txt += "🔥 ¡Dime y lo haremos! La disciplina es el camino al exito."
+    return txt, []
