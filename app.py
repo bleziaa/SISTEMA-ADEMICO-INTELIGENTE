@@ -52,6 +52,30 @@ def login():
         flash("Correo o contrasena incorrectos", "error")
     return render_template("login.html")
 
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        email = request.form["email"]
+        u = obtener_usuario_por_email(email)
+        if u:
+            return redirect(url_for("reset_password", id=u["id_usuario"]))
+        flash("No se encontro una cuenta con ese correo", "error")
+    return render_template("forgot_password.html")
+
+@app.route("/reset-password/<int:id>", methods=["GET", "POST"])
+def reset_password(id):
+    if request.method == "POST":
+        contrasena = request.form["contrasena"]
+        confirmar = request.form.get("confirmar", "")
+        if contrasena != confirmar:
+            flash("Las contrasenas no coinciden", "error")
+            return render_template("reset_password.html")
+        if actualizar_contrasena(id, contrasena):
+            flash("Contrasena actualizada exitosamente", "success")
+            return redirect(url_for("login"))
+        flash("Error al actualizar la contrasena", "error")
+    return render_template("reset_password.html")
+
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":

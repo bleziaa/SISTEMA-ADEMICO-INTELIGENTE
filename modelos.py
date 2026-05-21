@@ -22,6 +22,29 @@ def registrar_usuario(nombre, email, contrasena):
     conn.close()
     return True, "Usuario registrado exitosamente"
 
+def obtener_usuario_por_email(email):
+    conn = conectar()
+    if not conn:
+        return None
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM usuarios WHERE email = %s", (email,))
+    u = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return u
+
+def actualizar_contrasena(id_usuario, nueva_contrasena):
+    conn = conectar()
+    if not conn:
+        return False
+    cursor = conn.cursor()
+    h = hashlib.sha256(nueva_contrasena.encode()).hexdigest()
+    cursor.execute("UPDATE usuarios SET contrasena = %s WHERE id_usuario = %s", (h, id_usuario))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return True
+
 def login_usuario(email, contrasena):
     conn = conectar()
     if not conn:
