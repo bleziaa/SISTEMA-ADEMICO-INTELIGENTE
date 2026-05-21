@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}AcademIA{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=4">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=5">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script>
       tailwind.config = {
         darkMode: 'class',
@@ -26,9 +27,19 @@
               'tx': '#f1f1f3',
               'tx-secondary': '#a1a1aa',
               'tx-muted': '#52525b',
+              glass: 'rgba(255,255,255,0.03)',
+              'glass-hover': 'rgba(255,255,255,0.06)',
+              'glass-border': 'rgba(255,255,255,0.08)',
             },
             fontFamily: {
               sans: ['Inter', '-apple-system', 'sans-serif'],
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.6s ease-out forwards',
+              'slide-up': 'slideUp 0.5s ease-out forwards',
+              'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
+              'shimmer': 'shimmer 3s ease-in-out infinite',
+              'scale-in': 'scaleIn 0.3s ease-out forwards',
             },
           }
         }
@@ -152,5 +163,7 @@
         }, 4000);
     </script>
     {% block scripts %}{% endblock %}
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>document.addEventListener('DOMContentLoaded', function(){ lucide.createIcons(); });</script>
 </body>
 </html>

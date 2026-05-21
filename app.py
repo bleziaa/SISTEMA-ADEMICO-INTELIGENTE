@@ -1,6 +1,7 @@
 import logging
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date as date_cls
+import json
 from modelos import *
 from ia import generar_horario, generar_recomendacion, generar_horario_visual, chat_con_ia
 from modelos import guardar_recomendacion
@@ -109,7 +110,59 @@ def dashboard():
     stats = obtener_estadisticas(uid)
     tareas = listar_tareas(uid, "pendientes")[:5]
     recomendaciones = listar_recomendaciones(uid)
-    return render_template("dashboard.html", stats=stats, tareas=tareas, recomendaciones=recomendaciones)
+
+    # Chart data: weekly task distribution
+    tareas_all = listar_tareas(uid, None)
+    dias_semana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+    tareas_por_dia = [0] * 7
+    completadas_por_dia = [0] * 7
+    for t in tareas_all:
+        if t.get("fecha_limite"):
+            try:
+                fecha = datetime.strptime(str(t["fecha_limite"])[:10], "%Y-%m-%d")
+                dia = fecha.weekday()
+                tareas_por_dia[dia] += 1
+                if t.get("estado") == "completada":
+                    completadas_por_dia[dia] += 1
+            except (ValueError, TypeError):
+                pass
+
+    chart_data = {
+        "labels": dias_semana,
+        "total": tareas_por_dia,
+        "completed": completadas_por_dia,
+    }
+
+    # Heatmap data (last 4 weeks, Mon-Sun alignment)
+    heatmap = []
+    hoy = date_cls.today()
+    # Find most recent Monday (or today if today is Monday)
+    dias_desde_lunes = (hoy.weekday() - 0) % 7
+    ultimo_lunes = hoy - timedelta(days=dias_desde_lunes)
+    for semana in range(3, -1, -1):
+        row = []
+        for dia in range(7):
+            d = ultimo_lunes - timedelta(weeks=semana) + timedelta(days=dia)
+            count = 0
+            for t in tareas_all:
+                if t.get("fecha_limite"):
+                    try:
+                        fd = datetime.strptime(str(t["fecha_limite"])[:10], "%Y-%m-%d").date()
+                        if fd == d:
+                            count += 1
+                    except (ValueError, TypeError):
+                        pass
+            row.append({"date": d.strftime("%Y-%m-%d"), "count": count, "day": ["L","M","M","J","V","S","D"][dia]})
+        heatmap.append(row)
+
+    return render_template(
+        "dashboard.html",
+        stats=stats,
+        tareas=tareas,
+        recomendaciones=recomendaciones,
+        chart_data=json.dumps(chart_data),
+        heatmap=heatmap[::-1],  # oldest → newest left-to-right
+    )
 
 # ===== MATERIAS =====
 
