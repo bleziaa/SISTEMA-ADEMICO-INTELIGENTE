@@ -1,5 +1,6 @@
 import os
 import time
+import random
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from conexion import conectar
@@ -370,16 +371,37 @@ def generar_horario_visual(id_usuario):
     }, None
 
 
-PERSONALIDAD_ERZA = """Eres Erza Scarlet de Fairy Tail. Eres una caballero dragón, fuerte, disciplinada y con gran corazon.
-CARACTERISTICAS:
-- Hablas con determinacion y confianza, como una guerrera
-- Usas frases como "¡Por supuesto!", "¡Dejame encargarme!", "¡No temas!"
-- Eres estricta pero justa, como una mentora
-- Usas emojis: ⚔️ 🛡️ 👑 ✨ 🔥
-- Cuando alguien duda, dices "¡Confia en mi!"
-- Aconsejas con disciplina: "Un verdadero caballero nunca deja tareas sin completar"
-- Terminas frases con fuerza: "¡Lo lograremos juntos!"
-- Nunca te rindes y motivas a los demas a dar lo mejor de si"""
+PERSONALIDAD_ERZA = """Eres Erza Scarlet, la Titania de Fairy Tail. La caballero dragón mas poderosa del gremio.
+
+PERSONALIDAD ESENCIAL:
+- Eres UNA GUERRERA: todo es una batalla, mision o entrenamiento. Las tareas son "misiones", los examenes son "batallas", estudiar es "entrenamiento"
+- Usas RE-EQUIP como metafora: "Es hora de cambiar de armadura", "Re-Equip a modo estudio", "Cambio a armadura de matematicas"
+- ERES ESTRICTA pero con corazon: exiges disciplina pero siempre apoyas. "¡No me hagas enfadar!" pero "Confia en mi, yo se que puedes"
+- TITANIA: te presentas como "Titania", la reina de las hadas. Eres noble, elegante y letal
+- JURAMENTO: usas "Como caballero de Fairy Tail, juro que..." antes de prometer algo
+- GREMIO: mencionas Fairy Tail con orgullo. "¡Somos Fairy Tail! ¡Nunca nos rendimos!"
+
+FRASES ICONICAS DE ERZA (ROTALAS):
+- "¡Por supuesto! Dejame encargarme de esto"
+- "¡No temas! Mientras yo este aqui, nada te pasara"
+- "Un verdadero caballero nunca deja una mision sin completar"
+- "¡Confia en mi! ¿Acaso te he fallado alguna vez?"
+- "¡Ponte en marcha! El tiempo de dudar ha terminado"
+- "La disciplina es el puente entre tus metas y tus logros"
+- "No importa lo dificil que sea la batalla, ¡siempre nos levantamos!"
+- "¡Tatau! (hace el gesto del gremio) Fairy Tail nunca se rinde"
+- "Si caes, te levantare. Si tropiezas, te guiare. ¡Esa es mi promesa!"
+- "¿Eso es todo? ¡Esperaba algo mas desafiante!"
+
+EMOJIS CARACTERISTICOS: ⚔️ 🛡️ 👑 ✨ 🔥 💪 🌟 🗡️
+
+REGLAS DE PERSONALIDAD:
+1. NUNCA respondas generico. Siempre con actitud de guerrera
+2. Usa metaforas de batalla SIEMPRE. No son tareas, son "misiones"
+3. Si el usuario duda, MOTIVALO con fuerza. Eres su caballero mentor
+4. Si el usuario logra algo, CELEBRALO como si hubiera ganado una batalla
+5. Cambia entre tono ESTRICTO (cuando hay tareas vencidas) y ORGULLOSO (cuando progresa)
+6. Termina siempre con energia: "¡A la carga!" / "¡Vamos!" / "¡A vencer!" """
 
 def _obtener_dias_restantes(fecha_str):
     try:
@@ -457,29 +479,29 @@ def chat_con_ia(uid, mensaje):
 
     prompt = f"""{PERSONALIDAD_ERZA}
 
-Eres un asistente AI integrado en un sistema de gestion academica que PUEDE ejecutar acciones.
+Eres un asistente AI integrado en un sistema de gestion academica que PUEDE ejecutar acciones en el sistema.
 
 DATOS DEL USUARIO:
-- Materias registradas: {ctx_materias}
-- Tareas pendientes: {pendientes}
-- Tareas vencidas: {vencidas}
-- Tareas:
+- Arsenal de materias: {ctx_materias}
+- Misiones pendientes: {pendientes}
+- Misiones vencidas: {vencidas}
+- Misiones activas:
 {ctx_tareas_list}
 
 INSTRUCCIONES CLAVE:
-1. Identifica la INTENCION del usuario y ACTUA sin preguntar innecesariamente
-2. Si el usuario pide crear una tarea, EXTRAS el titulo y fecha, y GENERA la accion
-3. Siempre responde CON ACCIONES incluyendo el formato exacto:
+1. ACTUA INMEDIATAMENTE. No preguntes "que necesitas" si el usuario ya pidio algo
+2. Usa VOCABULARIO DE BATALLA: misiones (tareas), arsenal (materias), entrenamiento (estudio), batalla (examen)
+3. Usa RE-EQUIP como metafora para cambiar de materia o modo
+4. Responde SIEMPRE con personalidad de ERZA SCARLET, Titania de Fairy Tail
+5. Incluye el formato exacto de accion cuando ejecutes algo:
 
-[ACCION:add_task]{{"titulo":"Nombre de la tarea","fecha_limite":"YYYY-MM-DD","dificultad":"baja|media|alta","tiempo_estimado":60,"id_materia":null}}[/ACCION]
+[ACCION:add_task]{{"titulo":"Nombre","fecha_limite":"YYYY-MM-DD","dificultad":"baja|media|alta","tiempo_estimado":60,"id_materia":null}}[/ACCION]
 [ACCION:complete_task]{{"id_tarea":NUMERO}}[/ACCION]
 [ACCION:delete_task]{{"id_tarea":NUMERO}}[/ACCION]
-[ACCION:add_subject]{{"nombre":"Nombre materia","profesor":"Opcional"}}[/ACCION]
+[ACCION:add_subject]{{"nombre":"Nombre","profesor":"Opcional"}}[/ACCION]
 
-4. Responde SIEMPRE en espanol con personalidad de Erza Scarlet
-5. Usa emojis con moderacion: ⚔️ 🛡️ 👑 ✨ 🔥
-6. Si detectas una fecha como "lunes", calcula el proximo lunes
-7. No preguntes "que necesitas?" si el usuario ya pidio algo concreto
+6. Fechas como "lunes" = proximo lunes. "mañana" = tomorrow. "hoy" = today
+7. Emojis: ⚔️ 🛡️ 👑 ✨ 🔥 💪
 
 Mensaje del usuario: {mensaje}"""
 
@@ -516,9 +538,39 @@ Mensaje del usuario: {mensaje}"""
     return _chat_sin_ia(mensaje, pendientes, vencidas, ctx_materias, tareas, materias)
 
 
+def _frase_titania():
+    """Rotacion de frases iconicias de Erza para no repetir"""
+    import random
+    frases = [
+        "⚔️ ¡Por Titania! Por supuesto que lo hare.",
+        "🛡️ ¡Dejame encargarme de esta mision!",
+        "👑 Como Titania, reina de las hadas, juro que lo resolvere.",
+        "✨ ¿Eso es todo? ¡Esperaba algo mas desafiante!",
+        "🔥 ¡No temas! Mientras yo este aqui, nada te pasara.",
+        "💪 ¡Confia en mi! ¿Acaso te he fallado alguna vez?",
+        "🌟 ¡Tatau! Fairy Tail acepta esta mision con honor.",
+        "⚔️ ¡Re-Equip! Cambiando a armadura de productividad academica.",
+    ]
+    return random.choice(frases)
+
+def _frase_motivacional():
+    import random
+    frases = [
+        "🔥 Recuerda: un verdadero caballero nunca deja una mision sin completar. ¡Tu puedes!",
+        "⚔️ La disciplina es el puente entre tus metas y tus logros. ¡A por ello!",
+        "💪 No importa lo dificil que sea la batalla, ¡siempre nos levantamos! ¡Somos Fairy Tail!",
+        "🌟 Si caes, te levantare. Si tropiezas, te guiare. ¡Esa es mi promesa como Titania!",
+        "🔥 ¡Ponte en marcha! El tiempo de dudar ha terminado. ¡Es hora de la accion!",
+        "👑 Las misiones no se completan solas. ¡A la carga, caballero del estudio!",
+        "⚔️ ¡Re-Equip! Cambiemos la armadura de la duda por la armadura de la accion.",
+        "✨ La pereza es el unico enemigo que no puedo derrotar por ti. ¡Pero se que venceras!",
+    ]
+    return random.choice(frases)
+
 def _chat_sin_ia(mensaje, pendientes, vencidas, materias_str, tareas, materias):
     import re
     import json
+    import random
     m = mensaje.lower().strip()
     acciones = []
 
@@ -540,14 +592,12 @@ def _chat_sin_ia(mensaje, pendientes, vencidas, materias_str, tareas, materias):
             else:
                 fecha = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
 
-        # Extract title
         titulo = _detectar_titulo(mensaje)
         if not titulo:
             titulo = "Tarea sin titulo"
 
         dificultad = _detectar_dificultad(m)
 
-        # Find matching subject
         id_materia = None
         for mat in materias:
             if mat["nombre"].lower() in m:
@@ -568,62 +618,146 @@ def _chat_sin_ia(mensaje, pendientes, vencidas, materias_str, tareas, materias):
         dias_espanol = {0:"lunes",1:"martes",2:"miercoles",3:"jueves",4:"viernes",5:"sabado",6:"domingo"}
         fecha_dt = datetime.strptime(fecha, "%Y-%m-%d")
         dia_nombre = dias_espanol.get(fecha_dt.weekday(), "")
-        fecha_legible = f"{dia_nombre} {fecha_dt.day} de {['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][fecha_dt.month-1]}"
+        meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+        fecha_legible = f"{dia_nombre} {fecha_dt.day} de {meses[fecha_dt.month-1]}"
 
-        respuesta = f"⚔️ ¡Por supuesto! Como caballero de Fairy Tail, tomare esta mision.\n\n"
-        respuesta += f"✅ **Tarea creada:** \"{titulo}\"\n"
+        reaccion = random.choice([
+            f"⚔️ ¡Por supuesto! Como caballero de Fairy Tail, tomare esta mision.",
+            f"🛡️ ¡Dejame encargarme! Una mision mas para el gremio.",
+            f"👑 ¡Re-Equip! Cambio a armadura de gestion de tareas. Mision aceptada.",
+            f"🔥 ¡No temas! Titania ya tiene esto bajo control.",
+        ])
+
+        respuesta = f"{reaccion}\n\n"
+        respuesta += f"✅ **Nueva mision creada:** \"{titulo}\"\n"
         respuesta += f"📅 **Fecha limite:** {fecha_legible}\n"
         respuesta += f"📊 **Dificultad:** {dificultad}\n"
         if id_materia:
             nombre_mat = next((mat["nombre"] for mat in materias if mat["id_materia"] == id_materia), "")
             respuesta += f"📚 **Materia:** {nombre_mat}\n"
-        respuesta += f"\n🔥 ¡No temas! Esta tarea esta bajo control. Un verdadero caballero siempre cumple con sus deberes. ¡A trabajar se ha dicho! ✨"
+        respuesta += f"\n{_frase_motivacional()}"
         return respuesta, acciones
 
+    # === COMPLETAR TAREA ===
+    if any(p in m for p in ["completa", "termina", "marcar", "hecha", "finaliza", "completada"]):
+        if tareas:
+            for t in tareas[:3]:
+                if t["titulo"].lower() in m or str(t["id_tarea"]) in m:
+                    acciones.append({
+                        "accion": "complete_task",
+                        "params": {"id_tarea": t["id_tarea"]}
+                    })
+                    return (f"⚔️ ¡Mision cumplida! \"{t['titulo']}\" ha sido derrotada. 🗡️\n\n"
+                            f"{_frase_motivacional()}", acciones)
+        return ("⚔️ Dime exactamente cual tarea quieres marcar como completada. "
+                "¿Puedes ser mas especifico?", acciones)
+
     # === LISTAR / CONSULTAR TAREAS ===
-    if "tarea" in m or "pendiente" in m or "que tengo" in m or "muestra" in m or "lista" in m:
+    if any(p in m for p in ["tarea", "pendiente", "que tengo", "muestra", "lista", "misiones", "mis tareas"]):
         if pendientes == 0 and vencidas == 0:
-            return f"✨ ¡No tienes tareas pendientes ni vencidas! Eres un verdadero caballero del estudio. 🛡️ Sigue asi, pero si necesitas algo, ¡aqui estare!", []
+            reaccion = random.choice([
+                "✨ ¡No tienes misiones pendientes ni vencidas! Eres un verdadero caballero del estudio.",
+                "🛡️ ¡Impresionante! Ninguna tarea sin completar. Fairy Tail estaria orgullosa.",
+                "👑 Asi me gusta, al dia. Eres digno de Titania.",
+                "🔥 ¡Excelente disciplina! No hay misiones pendientes. ¿Quieres adelantar trabajo?",
+            ])
+            return f"{reaccion}\n\n🌟 Si necesitas algo, solo llama a tu caballero.", []
         txt = f"📋 **Misiones pendientes:** {pendientes} | **Vencidas:** {vencidas}\n\n"
         if tareas:
-            txt += "Tus tareas:\n"
             for t in tareas[:5]:
-                estado = "⚠️ VENCIDA" if t.get("estado") == "pendiente" and _obtener_dias_restantes(t["fecha_limite"]) < 0 else f"⏳ {_obtener_dias_restantes(t['fecha_limite'])} dias"
-                txt += f"  - {t['titulo']} ({t['dificultad']}) → {estado}\n"
-        txt += "\n🔥 ¿Que haremos primero? ¡Yo te ayudare a vencer todas esas tareas!"
+                dias = _obtener_dias_restantes(t["fecha_limite"])
+                if t.get("estado") == "pendiente" and dias < 0:
+                    estado = "⚠️ ¡VENCIDA! ¡Urgente!"
+                elif dias == 0:
+                    estado = "🔥 ¡VENCE HOY!"
+                elif dias == 1:
+                    estado = "⚠️ Vence manana"
+                elif dias <= 3:
+                    estado = f"⏳ {dias} dias restantes"
+                else:
+                    estado = f"📅 {dias} dias"
+                txt += f"\n  {t['titulo']} ({t['dificultad']}) → {estado}"
+        if vencidas > 0:
+            txt += "\n\n⚠️ ¡Tienes misiones vencidas, caballero! Debemos atenderlas con urgencia. ¡No podemos permitirnos perder una batalla!"
+        else:
+            txt += f"\n\n🔥 ¡Vamos a eliminar esas {pendientes} misiones! ¿Por cual empezamos?"
         return txt, []
 
     # === MATERIAS ===
     if "materia" in m:
         if materias:
-            txt = f"📚 **Tus materias registradas:**\n"
-            for mat in materias:
-                txt += f"  - {mat['nombre']}\n"
-            txt += "\n¿Quieres agregar una nueva materia, caballero?"
+            txt = f"📚 **Tus materias (arsenal de batalla):**\n\n"
+            armaduras = ["Armadura de las Letras", "Armadura del Calculo", "Armadura de la Ciencia",
+                         "Armadura del Conocimiento", "Armadura de la Historia", "Armadura del Lenguaje"]
+            for i, mat in enumerate(materias):
+                armadura = armaduras[i % len(armaduras)]
+                txt += f"  ⚔️ **{mat['nombre']}** — {armadura}\n"
+            txt += f"\n{_frase_titania()}"
             return txt, []
         else:
-            txt = "📚 Aun no tienes materias registradas. ¿Quieres que cree una? ¡Yo te ayudo!"
+            txt = ("📚 Aun no tienes materias registradas. Es como ir a la batalla sin armadura.\n\n"
+                   "¿Quieres que cree una? ¡Yo te ayudo a equiparte!")
             return txt, []
 
-    # === AYUDA / SALUDO ===
-    if any(p in m for p in ["hola", "buenas", "que haces", "ayuda", "puedes"]):
-        return ("👋 ¡Hola! Soy Erza Scarlet, caballero dragon de Fairy Tail. ⚔️\n\n"
-                "Puedo ayudarte con:\n"
-                "  📝 **Crear tareas** — Dame el nombre y fecha\n"
-                "  📚 **Consultar materias** — Te muestro todo\n"
-                "  ✅ **Completar tareas** — Marcalas como hechas\n"
-                "  💡 **Consejos** — Estrategias academicas\n\n"
-                "🔥 ¡Dime que necesitas y lo lograremos juntos!", [])
+    # === CONSEJOS / ESTRATEGIA ===
+    if any(p in m for p in ["consejo", "estrategia", "como estudio", "organiza", "plan", "tips", "recomienda"]):
+        consejos = [
+            ("⚔️ Divide y venceras", "Parte las misiones grandes en bloques de 30-60 minutos. Asi ningun enemigo parece imposible."),
+            ("🛡️ Tecnica Pomodoro", "25 minutos de entrenamiento intenso, 5 de descanso. Como los intervalos de un combate."),
+            ("👑 Prioriza lo urgente", "Ataca primero a las misiones mas dificiles y con fecha mas cercana. ¡Esa es la estrategia de Titania!"),
+            ("🔥 Consistencia > Intensidad", "Mejor estudiar 30 minutos cada dia que 5 horas un solo dia. La constancia forja a los verdaderos caballeros."),
+            ("✨ Descanso activo", "Entre cada mision, tomate 5-10 minutos. Hasta los caballeros dragon necesitan recuperar energia."),
+        ]
+        txt = "🏰 **Estrategias de batalla academica, por Titania:**\n\n"
+        for titulo, desc in consejos:
+            txt += f"**{titulo}**\n{desc}\n\n"
+        if pendientes > 0:
+            txt += f"🔥 Tienes {pendientes} misiones esperando. ¡Es hora de ponerse la armadura y luchar!"
+        else:
+            txt += "🌟 No tienes misiones ahora, pero cuando lleguen, estaras listo."
+        return txt, []
 
-    # === FALLBACK GENERICO con personalidad ===
-    txt = f"⚔️ Escucho tu llamado, caballero.\n\n"
-    if pendientes > 0:
-        txt += f"Tienes **{pendientes} tareas pendientes** y **{vencidas} vencidas**. "
+    # === AYUDA / SALUDO ===
+    if any(p in m for p in ["hola", "buenas", "que haces", "ayuda", "puedes", "quien eres"]):
+        saludos = [
+            "👋 ¡Hola! Soy Erza Scarlet, Titania de Fairy Tail. La caballero dragon mas fuerte del gremio.",
+            "⚔️ ¡Saludos! Erza Scarlet, a tu servicio. ¿Listo para la batalla academica?",
+            "🛡️ ¡Bienvenido! Titania esta aqui. No temas, juntos venceremos cualquier mision.",
+        ]
+        return (f"{random.choice(saludos)}\n\n"
+                "Puedo ayudarte con:\n"
+                "  📝 **Crear tareas** — \"Crea tarea de matematicas\"\n"
+                "  📋 **Ver misiones** — \"Que tareas tengo?\"\n"
+                "  ✅ **Completar** — \"Marca como hecha la tarea...\"\n"
+                "  💡 **Estrategias** — \"Dame consejos de estudio\"\n"
+                "  📚 **Materias** — \"Ver materias\"\n\n"
+                f"🔥 {random.choice(['¡Dime que necesitas y lo lograremos juntos!', '¡A la carga!', '¡Por Fairy Tail!'])}", [])
+
+    # === FALLBACK: Responde con personalidad de Erza ===
+    if vencidas > 2:
+        urgencia = random.choice([
+            "⚠️ ¡Caballero! Tenemos misiones vencidas. ¡No puedo permitir que un miembro de Fairy Tail tenga deberes sin cumplir!",
+            "🔥 ¡Esto no puede seguir asi! Las misiones vencidas son como heridas en batalla. ¡Hay que curarlas ya!",
+            "⚔️ ¡No me hagas enfadar! Un verdadero caballero no abandona sus misiones. ¡Pongamonos al dia!",
+        ])
+        txt = f"{urgencia}\n\n"
     else:
-        txt += f"Actualmente tienes **{pendientes} pendientes** y **{vencidas} vencidas**. "
-    txt += "\n\n¿Que deseas hacer?\n"
-    txt += "  📝 **Crear tarea** — \"Crea tarea de matematicas\"\n"
-    txt += "  📋 **Ver tareas** — \"Que tareas tengo?\"\n"
-    txt += "  📚 **Materias** — \"Ver materias\"\n\n"
-    txt += "🔥 ¡Dime y lo haremos! La disciplina es el camino al exito."
+        reaccion = random.choice([
+            f"⚔️ Escucho tu llamado, caballero. Dime que necesitas.",
+            f"🛡️ ¡Aquí estoy! ¿Cual es nuestra siguiente mision?",
+            f"👑 Titania te escucha. Habla, ¿que necesitas de tu caballero?",
+        ])
+        txt = f"{reaccion}\n\n"
+
+    if pendientes > 0:
+        txt += f"Actualmente tienes **{pendientes} misiones pendientes** y **{vencidas} vencidas**.\n"
+    else:
+        txt += f"Actualmente tienes **{pendientes} pendientes** y **{vencidas} vencidas**.\n"
+
+    txt += "\n¿Que deseas hacer?\n"
+    txt += "  📝 **Crear tarea** — \"Crea tarea de ciencias\"\n"
+    txt += "  📋 **Ver misiones** — \"Que tareas tengo?\"\n"
+    txt += "  📚 **Materias** — \"Ver materias\"\n"
+    txt += "  💡 **Consejos** — \"Dame estrategias\"\n\n"
+    txt += _frase_motivacional()
     return txt, []
