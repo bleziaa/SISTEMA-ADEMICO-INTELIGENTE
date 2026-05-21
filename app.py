@@ -288,7 +288,8 @@ def horario_sugerido():
         return redirect(url_for("login"))
     uid = session["usuario_id"]
     recomendaciones = listar_recomendaciones(uid)
-    return render_template("horario_sugerido.html", recomendaciones=recomendaciones)
+    stats = obtener_estadisticas(uid)
+    return render_template("horario_sugerido.html", recomendaciones=recomendaciones, stats=stats)
 
 @app.route("/generar-horario-ia")
 def generar_horario_ia():
