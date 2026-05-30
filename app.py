@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, date as date_cls
 import json
 from modelos import *
 from ia import generar_horario, generar_recomendacion, generar_horario_visual, chat_con_ia
-from modelos import guardar_recomendacion
+from modelos import guardar_recomendacion, solicitar_restablecimiento, validar_token_restablecimiento, restablecer_contrasena
 from init_db import init_db
 
 logging.basicConfig(level=logging.INFO)
@@ -65,25 +65,37 @@ def login():
 def forgot_password():
     if request.method == "POST":
         email = request.form["email"]
-        u = obtener_usuario_por_email(email)
-        if u:
-            return redirect(url_for("reset_password", id=u["id_usuario"]))
-        flash("No se encontro una cuenta con ese correo", "error")
+        solicitar_restablecimiento(email, direccion_ip=request.remote_addr)
+        flash("Si el correo esta registrado, recibiras un enlace de recuperacion", "success")
+        return redirect(url_for("login"))
     return render_template("forgot_password.html")
 
-@app.route("/reset-password/<int:id>", methods=["GET", "POST"])
-def reset_password(id):
+@app.route("/reset-password", methods=["GET", "POST"])
+def reset_password():
+    token = request.args.get("token", "")
+    if not token:
+        flash("Enlace de recuperacion invalido", "error")
+        return redirect(url_for("login"))
+
+    t = validar_token_restablecimiento(token)
+    if not t:
+        flash("El enlace ha expirado o ya fue utilizado", "error")
+        return redirect(url_for("forgot_password"))
+
     if request.method == "POST":
         contrasena = request.form["contrasena"]
         confirmar = request.form.get("confirmar", "")
         if contrasena != confirmar:
             flash("Las contrasenas no coinciden", "error")
-            return render_template("reset_password.html")
-        if actualizar_contrasena(id, contrasena):
-            flash("Contrasena actualizada exitosamente", "success")
+            return render_template("reset_password.html", token=token)
+        ok, msg = restablecer_contrasena(token, contrasena, direccion_ip=request.remote_addr)
+        if ok:
+            flash(msg, "success")
             return redirect(url_for("login"))
-        flash("Error al actualizar la contrasena", "error")
-    return render_template("reset_password.html")
+        flash(msg, "error")
+        return render_template("reset_password.html", token=token)
+
+    return render_template("reset_password.html", token=token)
 
 @app.route("/register", methods=["GET", "POST"])
 def register():

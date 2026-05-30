@@ -83,3 +83,22 @@ CREATE TABLE IF NOT EXISTS recomendaciones (
     fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id_token INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario INT NOT NULL,
+    token VARCHAR(255) NOT NULL UNIQUE,
+    fecha_expiracion DATETIME NOT NULL,
+    usado TINYINT(1) DEFAULT 0,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS auditoria (
+    id_auditoria INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario INT DEFAULT NULL,
+    accion VARCHAR(50) NOT NULL,
+    detalle VARCHAR(255) DEFAULT NULL,
+    direccion_ip VARCHAR(45) DEFAULT NULL,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

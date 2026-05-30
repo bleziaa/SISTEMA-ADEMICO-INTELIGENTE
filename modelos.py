@@ -1,8 +1,67 @@
 from conexion import conectar
 from datetime import datetime, timedelta
-import hashlib
+import secrets
+import bcrypt
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import os
+import logging
+from dotenv import load_dotenv
 
-# ===== USUARIOS =====
+load_dotenv()
+logger = logging.getLogger(__name__)
+
+def _enviar_correo(destinatario, asunto, cuerpo_html):
+    smtp_host = os.getenv("SMTP_HOST", "")
+    smtp_port = int(os.getenv("SMTP_PORT", 587))
+    smtp_user = os.getenv("SMTP_USER", "")
+    smtp_pass = os.getenv("SMTP_PASS", "")
+    smtp_from = os.getenv("SMTP_FROM", smtp_user)
+    smtp_from_name = os.getenv("SMTP_FROM_NAME", "AcademIA")
+
+    if not smtp_host or not smtp_user or not smtp_pass:
+        logger.warning("SMTP no configurado — no se pudo enviar correo a %s", destinatario)
+        return False
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["From"] = f"{smtp_from_name} <{smtp_from}>"
+        msg["To"] = destinatario
+        msg["Subject"] = asunto
+        msg.attach(MIMEText(cuerpo_html, "html"))
+
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_from, [destinatario], msg.as_string())
+        logger.info("Correo enviado a %s", destinatario)
+        return True
+    except Exception as e:
+        logger.error("Error al enviar correo a %s: %s", destinatario, e)
+        return False
+
+def _registrar_auditoria(id_usuario, accion, detalle=None, direccion_ip=None):
+    conn = conectar()
+    if not conn:
+        return
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO auditoria (id_usuario, accion, detalle, direccion_ip) VALUES (%s, %s, %s, %s)",
+        (id_usuario, accion, detalle, direccion_ip),
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+def hash_contrasena(contrasena):
+    return bcrypt.hashpw(contrasena.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+def verificar_contrasena(contrasena, hash_almacenado):
+    try:
+        return bcrypt.checkpw(contrasena.encode("utf-8"), hash_almacenado.encode("utf-8"))
+    except ValueError:
+        return False
 
 def registrar_usuario(nombre, email, contrasena):
     conn = conectar()
@@ -14,9 +73,11 @@ def registrar_usuario(nombre, email, contrasena):
         cursor.close()
         conn.close()
         return False, "El correo ya esta registrado"
-    h = hashlib.sha256(contrasena.encode()).hexdigest()
-    cursor.execute("INSERT INTO usuarios (nombre, email, contrasena) VALUES (%s, %s, %s)",
-                   (nombre, email, h))
+    h = hash_contrasena(contrasena)
+    cursor.execute(
+        "INSERT INTO usuarios (nombre, email, contrasena) VALUES (%s, %s, %s)",
+        (nombre, email, h),
+    )
     conn.commit()
     cursor.close()
     conn.close()
@@ -33,12 +94,23 @@ def obtener_usuario_por_email(email):
     conn.close()
     return u
 
+def obtener_usuario_por_id(id_usuario):
+    conn = conectar()
+    if not conn:
+        return None
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM usuarios WHERE id_usuario = %s", (id_usuario,))
+    u = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return u
+
 def actualizar_contrasena(id_usuario, nueva_contrasena):
     conn = conectar()
     if not conn:
         return False
     cursor = conn.cursor()
-    h = hashlib.sha256(nueva_contrasena.encode()).hexdigest()
+    h = hash_contrasena(nueva_contrasena)
     cursor.execute("UPDATE usuarios SET contrasena = %s WHERE id_usuario = %s", (h, id_usuario))
     conn.commit()
     cursor.close()
@@ -50,12 +122,114 @@ def login_usuario(email, contrasena):
     if not conn:
         return None
     cursor = conn.cursor(dictionary=True)
-    h = hashlib.sha256(contrasena.encode()).hexdigest()
-    cursor.execute("SELECT * FROM usuarios WHERE email = %s AND contrasena = %s", (email, h))
+    cursor.execute("SELECT * FROM usuarios WHERE email = %s", (email,))
     u = cursor.fetchone()
     cursor.close()
     conn.close()
-    return u
+    if u and verificar_contrasena(contrasena, u["contrasena"]):
+        return u
+    return None
+
+def solicitar_restablecimiento(email, direccion_ip=None):
+    conn = conectar()
+    if not conn:
+        return False
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM usuarios WHERE email = %s", (email,))
+    usuario = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not usuario:
+        _registrar_auditoria(None, "INTENTO_RECUPERACION", f"Email no registrado: {email}", direccion_ip)
+        return True
+
+    _registrar_auditoria(usuario["id_usuario"], "SOLICITUD_RECUPERACION", direccion_ip=direccion_ip)
+
+    token = secrets.token_urlsafe(48)
+    expiracion = datetime.now() + timedelta(minutes=15)
+
+    conn = conectar()
+    if not conn:
+        return False
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO password_reset_tokens (id_usuario, token, fecha_expiracion) VALUES (%s, %s, %s)",
+        (usuario["id_usuario"], token, expiracion),
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    app_url = os.getenv("APP_URL", "http://localhost:5000")
+    enlace = f"{app_url}/reset-password?token={token}"
+    asunto = "Recuperacion de contrasena - AcademIA"
+    cuerpo_html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+        <div style="text-align: center; padding: 20px 0;">
+            <h1 style="color: #06b6d4;">AcademIA</h1>
+            <h2>Recuperacion de contrasena</h2>
+        </div>
+        <p>Hola <strong>{usuario['nombre']}</strong>,</p>
+        <p>Recibimos una solicitud para restablecer tu contrasena. Haz clic en el siguiente enlace para crear una nueva:</p>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{enlace}"
+               style="background-color: #06b6d4; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+                Restablecer contrasena
+            </a>
+        </div>
+        <p>Este enlace expira en <strong>15 minutos</strong>.</p>
+        <p>Si no solicitaste este cambio, ignora este correo.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="color: #888; font-size: 12px;">AcademIA - Tu asistente academico inteligente</p>
+    </div>
+    """
+    _enviar_correo(usuario["email"], asunto, cuerpo_html)
+    return True
+
+def validar_token_restablecimiento(token):
+    conn = conectar()
+    if not conn:
+        return None
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT * FROM password_reset_tokens WHERE token = %s AND usado = 0 AND fecha_expiracion > NOW()",
+        (token,),
+    )
+    t = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return t
+
+def restablecer_contrasena(token, nueva_contrasena, direccion_ip=None):
+    t = validar_token_restablecimiento(token)
+    if not t:
+        return False, "Token invalido o expirado"
+
+    id_usuario = t["id_usuario"]
+    if not actualizar_contrasena(id_usuario, nueva_contrasena):
+        return False, "Error al actualizar la contrasena"
+
+    conn = conectar()
+    if conn:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE password_reset_tokens SET usado = 1 WHERE id_token = %s", (t["id_token"],))
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+    _registrar_auditoria(id_usuario, "RESTABLECIMIENTO_EXITOSO", direccion_ip=direccion_ip)
+    return True, "Contrasena actualizada exitosamente"
+
+def limpiar_tokens_expirados():
+    conn = conectar()
+    if not conn:
+        return
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM password_reset_tokens WHERE fecha_expiracion <= NOW() AND usado = 0")
+    conn.commit()
+    cursor.close()
+    conn.close()
 
 # ===== MATERIAS =====
 
