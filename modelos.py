@@ -567,3 +567,71 @@ def obtener_estadisticas(id_usuario):
     cursor.close()
     conn.close()
     return stats
+
+# ===== SEED DATA =====
+
+def seed_sample_data():
+    conn = conectar()
+    if not conn:
+        return
+    cursor = conn.cursor(dictionary=True)
+    from datetime import datetime, timedelta
+    cursor.execute("SELECT id_usuario FROM usuarios LIMIT 1")
+    user = cursor.fetchone()
+    if not user:
+        import bcrypt
+        pwd = bcrypt.hashpw("demo1234".encode(), bcrypt.gensalt()).decode()
+        cursor.execute("INSERT INTO usuarios (nombre, email, contrasena) VALUES (%s, %s, %s)",
+                       ("Estudiante Demo", "demo@academia.com", pwd))
+        conn.commit()
+        user_id = cursor.lastrowid
+        logger.info("Seed: usuario demo creado (demo@academia.com / demo1234)")
+    else:
+        user_id = user["id_usuario"]
+    cursor.execute("SELECT COUNT(*) as c FROM materias WHERE id_usuario=%s", (user_id,))
+    if cursor.fetchone()["c"] == 0:
+        materias = [
+            ("Calculo Diferencial", "Dr. Pedro Martinez", "#3B82F6"),
+            ("Programacion Orientada a Objetos", "Ing. Maria Lopez", "#10B981"),
+            ("Bases de Datos", "Prof. Carlos Sanchez", "#F59E0B"),
+            ("Estructuras de Datos", "Ing. Ana Torres", "#EF4444"),
+            ("Ingles Tecnico", "Lic. Laura Jimenez", "#8B5CF6"),
+        ]
+        for m in materias:
+            cursor.execute("INSERT INTO materias (id_usuario, nombre, profesor, color) VALUES (%s, %s, %s, %s)", (user_id, *m))
+        conn.commit()
+        logger.info("Seed: 5 materias creadas")
+    cursor.execute("SELECT id_materia, nombre FROM materias WHERE id_usuario=%s", (user_id,))
+    mids = {r["nombre"]: r["id_materia"] for r in cursor.fetchall()}
+    cursor.execute("SELECT COUNT(*) as c FROM tareas WHERE id_usuario=%s", (user_id,))
+    if cursor.fetchone()["c"] == 0:
+        hoy = datetime.now().date()
+        tareas = [
+            ("Ejercicios de limites", "Resolver ejercicios pares del capitulo 3", str(hoy + timedelta(days=2)), "Calculo Diferencial", "alta", 120),
+            ("Taller de herencia", "Completar taller de clases y herencia en Java", str(hoy + timedelta(days=5)), "Programacion Orientada a Objetos", "media", 90),
+            ("Diagrama ER", "Disenar diagrama entidad-relacion del proyecto", str(hoy + timedelta(days=1)), "Bases de Datos", "alta", 60),
+            ("Implementar lista enlazada", "Crear lista enlazada simple en C++", str(hoy + timedelta(days=7)), "Estructuras de Datos", "media", 120),
+            ("Traduccion del articulo", "Traducir resumen del articulo cientifico", str(hoy + timedelta(days=3)), "Ingles Tecnico", "baja", 45),
+        ]
+        for t in tareas:
+            mid = mids.get(t[3])
+            cursor.execute("INSERT INTO tareas (id_usuario, id_materia, titulo, descripcion, fecha_limite, dificultad, tiempo_estimado) VALUES (%s,%s,%s,%s,%s,%s,%s)", (user_id, mid, t[0], t[1], t[2], t[4], t[5]))
+        conn.commit()
+        logger.info("Seed: 5 tareas creadas")
+    cursor.execute("SELECT COUNT(*) as c FROM notas WHERE id_usuario=%s", (user_id,))
+    if cursor.fetchone()["c"] == 0:
+        for n in [("Calculo Diferencial", 4.5), ("Programacion Orientada a Objetos", 4.8), ("Bases de Datos", 4.2), ("Estructuras de Datos", 3.8), ("Ingles Tecnico", 4.0)]:
+            mid = mids.get(n[0])
+            if mid:
+                cursor.execute("INSERT INTO notas (id_usuario, id_materia, calificacion) VALUES (%s, %s, %s)", (user_id, mid, n[1]))
+        conn.commit()
+        logger.info("Seed: 5 notas creadas")
+    cursor.execute("SELECT COUNT(*) as c FROM horarios WHERE id_usuario=%s", (user_id,))
+    if cursor.fetchone()["c"] == 0:
+        for h in [("lunes","07:00","09:00"),("lunes","14:00","16:00"),("martes","08:00","10:00"),("martes","15:00","17:00"),("miercoles","07:00","09:00"),("miercoles","13:00","15:00"),("jueves","09:00","11:00"),("jueves","14:00","16:00"),("viernes","07:00","12:00")]:
+            cursor.execute("INSERT INTO horarios (id_usuario, dia_semana, hora_inicio, hora_fin, tipo) VALUES (%s, %s, %s, %s, 'clase')", (user_id, h[0], h[1], h[2]))
+        conn.commit()
+        logger.info("Seed: 9 horarios creados")
+    cursor.close()
+    conn.close()
+    logger.info("Seed: muestra de datos completada")

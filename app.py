@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, date as date_cls
 import json
 from modelos import *
 from ia import generar_horario, generar_recomendacion, generar_horario_visual, chat_con_ia
-from modelos import guardar_recomendacion, solicitar_restablecimiento, validar_token_restablecimiento, restablecer_contrasena
+from modelos import guardar_recomendacion, solicitar_restablecimiento, validar_token_restablecimiento, restablecer_contrasena, seed_sample_data
 from init_db import init_db
 
 logging.basicConfig(level=logging.INFO)
@@ -17,6 +17,7 @@ app.permanent_session_lifetime = timedelta(minutes=30)
 # Initialize the database schema before the app starts serving requests.
 # This is safe to call on every startup — all statements use IF NOT EXISTS.
 init_db()
+seed_sample_data()
 
 @app.context_processor
 def inject_notifications():
