@@ -1,4 +1,5 @@
 import logging
+import os
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime, timedelta, date as date_cls
 import json
@@ -65,8 +66,12 @@ def login():
 def forgot_password():
     if request.method == "POST":
         email = request.form["email"]
-        solicitar_restablecimiento(email, direccion_ip=request.remote_addr)
-        flash("Si el correo esta registrado, recibiras un enlace de recuperacion", "success")
+        ok, enlace = solicitar_restablecimiento(email, direccion_ip=request.remote_addr)
+        smtp_config = os.getenv("SMTP_HOST") and os.getenv("SMTP_USER") and os.getenv("SMTP_PASS")
+        if not smtp_config and enlace:
+            flash(f"Enlace de recuperacion (copia y pega): {enlace}", "info")
+        else:
+            flash("Si el correo esta registrado, recibiras un enlace de recuperacion", "success")
         return redirect(url_for("login"))
     return render_template("forgot_password.html")
 

@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-def _enviar_correo(destinatario, asunto, cuerpo_html):
+def _enviar_correo(destinatario, asunto, cuerpo_html, enlace_fallback=None):
     smtp_host = os.getenv("SMTP_HOST", "")
     smtp_port = int(os.getenv("SMTP_PORT", 587))
     smtp_user = os.getenv("SMTP_USER", "")
@@ -21,7 +21,11 @@ def _enviar_correo(destinatario, asunto, cuerpo_html):
     smtp_from_name = os.getenv("SMTP_FROM_NAME", "AcademIA")
 
     if not smtp_host or not smtp_user or not smtp_pass:
-        logger.warning("SMTP no configurado — no se pudo enviar correo a %s", destinatario)
+        logger.warning("SMTP no configurado")
+        if enlace_fallback:
+            logger.info("=== ENLACE DE RECUPERACION (copia y pega en el navegador) ===")
+            logger.info(enlace_fallback)
+            logger.info("=== =========================== ===")
         return False
 
     try:
@@ -39,6 +43,10 @@ def _enviar_correo(destinatario, asunto, cuerpo_html):
         return True
     except Exception as e:
         logger.error("Error al enviar correo a %s: %s", destinatario, e)
+        if enlace_fallback:
+            logger.info("=== ENLACE DE RECUPERACION (fallback por error SMTP) ===")
+            logger.info(enlace_fallback)
+            logger.info("=== =========================== ===")
         return False
 
 def _registrar_auditoria(id_usuario, accion, detalle=None, direccion_ip=None):
@@ -133,7 +141,7 @@ def login_usuario(email, contrasena):
 def solicitar_restablecimiento(email, direccion_ip=None):
     conn = conectar()
     if not conn:
-        return False
+        return False, None
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT * FROM usuarios WHERE email = %s", (email,))
     usuario = cursor.fetchone()
@@ -142,7 +150,7 @@ def solicitar_restablecimiento(email, direccion_ip=None):
 
     if not usuario:
         _registrar_auditoria(None, "INTENTO_RECUPERACION", f"Email no registrado: {email}", direccion_ip)
-        return True
+        return True, None
 
     _registrar_auditoria(usuario["id_usuario"], "SOLICITUD_RECUPERACION", direccion_ip=direccion_ip)
 
@@ -151,7 +159,7 @@ def solicitar_restablecimiento(email, direccion_ip=None):
 
     conn = conectar()
     if not conn:
-        return False
+        return False, None
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO password_reset_tokens (id_usuario, token, fecha_expiracion) VALUES (%s, %s, %s)",
@@ -184,8 +192,8 @@ def solicitar_restablecimiento(email, direccion_ip=None):
         <p style="color: #888; font-size: 12px;">AcademIA - Tu asistente academico inteligente</p>
     </div>
     """
-    _enviar_correo(usuario["email"], asunto, cuerpo_html)
-    return True
+    _enviar_correo(usuario["email"], asunto, cuerpo_html, enlace_fallback=enlace)
+    return True, enlace
 
 def validar_token_restablecimiento(token):
     conn = conectar()
