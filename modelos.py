@@ -576,18 +576,21 @@ def seed_sample_data():
         return
     cursor = conn.cursor(dictionary=True)
     from datetime import datetime, timedelta
-    cursor.execute("SELECT id_usuario FROM usuarios LIMIT 1")
+    import bcrypt
+    pwd = bcrypt.hashpw("demo1234".encode(), bcrypt.gensalt()).decode()
+    cursor.execute("SELECT id_usuario, nombre FROM usuarios WHERE email=%s", ("demo@academia.com",))
     user = cursor.fetchone()
     if not user:
-        import bcrypt
-        pwd = bcrypt.hashpw("demo1234".encode(), bcrypt.gensalt()).decode()
-        cursor.execute("INSERT INTO usuarios (nombre, email, contrasena) VALUES (%s, %s, %s)",
-                       ("Estudiante Demo", "demo@academia.com", pwd))
+        cursor.execute("INSERT INTO usuarios (nombre, email, contrasena) VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE contrasena=%s",
+                       ("Estudiante Demo", "demo@academia.com", pwd, pwd))
         conn.commit()
         user_id = cursor.lastrowid
         logger.info("Seed: usuario demo creado (demo@academia.com / demo1234)")
     else:
         user_id = user["id_usuario"]
+        cursor.execute("UPDATE usuarios SET contrasena=%s WHERE id_usuario=%s", (pwd, user_id))
+        conn.commit()
+        logger.info("Seed: contrasena demo actualizada")
     cursor.execute("SELECT COUNT(*) as c FROM materias WHERE id_usuario=%s", (user_id,))
     if cursor.fetchone()["c"] == 0:
         materias = [
